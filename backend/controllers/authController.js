@@ -20,9 +20,14 @@ export const login = async (req, res) => {
 
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '8h' });
     console.log('Login successful:', user.email);
+   
+    const [perms] = await db.query(
+        "SELECT page FROM permissions WHERE user_id=? AND can_access=1",
+        [user.id]
+        );
 
     return res.json({ token, role: user.role , name: user.name,
-      email: user.email});
+      email: user.email, permissions: perms.map(p => p.page)});
   } catch (error) {
     console.error('Login error:', error);
     return res.status(500).json({ message: 'Server error', error: error.message });
@@ -30,20 +35,4 @@ export const login = async (req, res) => {
 };
 
 
-// Admin adds staff
-export const addStaff = async (req, res) => {
-  const { name, email, password, pagesAllowed } = req.body; // pagesAllowed = array of page routes staff can access
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    db.query(
-      'INSERT INTO users (name,email,password,role,pagesAllowed) VALUES (?,?,?,?,?)',
-      [name, email, hashedPassword, 'staff', JSON.stringify(pagesAllowed)],
-      (err, result) => {
-        if (err) return res.status(500).json({ message: 'DB error' });
-        res.json({ message: 'Staff added successfully' });
-      }
-    );
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
+

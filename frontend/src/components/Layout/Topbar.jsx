@@ -45,6 +45,7 @@ const Topbar = ({ onLogout }) => {
     localStorage.removeItem('role');
     localStorage.removeItem('name');
     localStorage.removeItem('email');
+    localStorage.removeItem('permissions');
     setShowUserMenu(false);
     navigate('/');
   };

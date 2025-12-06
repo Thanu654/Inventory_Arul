@@ -101,3 +101,11 @@ CREATE TABLE users (
   status ENUM('active','inactive') DEFAULT 'active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+--  staff permission
+CREATE TABLE permissions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT,
+  page VARCHAR(50),
+  can_access BOOLEAN DEFAULT false,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
