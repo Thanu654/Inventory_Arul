@@ -7,7 +7,7 @@ import inventoryRoutes from "./routes/inventoryRoutes.js";
 import db from "./config/db.js";
 import authRoutes from './routes/authRoutes.js';
 import bcrypt from 'bcryptjs';
-
+import staffRoutes from "./routes/staffRoutes.js";
 
 dotenv.config();
 
@@ -44,6 +44,8 @@ app.get("/api/health", async (req, res) => {
 // API routes
 app.use("/api", authRoutes);
 app.use("/api", inventoryRoutes);
+app.use("/api", staffRoutes);
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {

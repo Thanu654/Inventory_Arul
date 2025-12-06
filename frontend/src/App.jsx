@@ -1,6 +1,7 @@
 import React from 'react';
 import "./globals.css";
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
+
 import Layout from './components/Layout/Layout';
 import ViewInventory from './components/Inventory/ViewInventory';
 import Dashboard from './components/Dashboard/Dashboard';
@@ -10,31 +11,110 @@ import Notifications from './components/Notifications/Notifications';
 import Offers from './components/Offers/Offers';
 import Delivery from './components/Delivery/Delivery';
 import Login from './components/Login';
-import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
-// import AddStaff from './components/Staff/AddStaff';
-
+import AddStaff from './components/Staff/AddStaff';
+import ViewStaff from './components/Staff/viewStaff';
+import { ProtectedRoute, AdminRoute} from './components/ProtectedRoute';
+import { PermissionRoute } from './components/PermissionRoute';
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+
+        {/* ✅ LOGIN */}
         <Route path="/" element={<Login />} />
 
-        {/* Protected routes under /dashboard */}
-        <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        {/* ✅ PROTECTED DASHBOARD LAYOUT */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          {/* ✅ DEFAULT DASHBOARD */}
           <Route index element={<Dashboard />} />
-          <Route path="inventory" element={<ViewInventory />} />
-          <Route path="delivery" element={<Delivery />} />
-          <Route path="billing" element={<Billing />} />
-          <Route path="transactions" element={<Transactions />} />
-          <Route path="notifications" element={<Notifications />} />
-          <Route path="offers" element={<Offers />} />
 
-          {/* Admin-only pages */}
-          {/* <Route path="add-staff" element={<AdminRoute><AddStaff /></AdminRoute>} /> */}
+          {/* ✅ STAFF PERMISSION BASED ROUTES */}
+          <Route
+            path="inventory"
+            element={
+              <PermissionRoute page="inventory">
+                <ViewInventory />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="delivery"
+            element={
+              <PermissionRoute page="delivery">
+                <Delivery />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="billing"
+            element={
+              <PermissionRoute page="billing">
+                <Billing />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="transactions"
+            element={
+              <PermissionRoute page="transactions">
+                <Transactions />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="notifications"
+            element={
+              <PermissionRoute page="notifications">
+                <Notifications />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="offers"
+            element={
+              <PermissionRoute page="offers">
+                <Offers />
+              </PermissionRoute>
+            }
+          />
+
+
+
+          {/* ✅ ADMIN ONLY PAGE */}
+          <Route
+            path="add-staff"
+            element={
+              <AdminRoute>
+                <AddStaff />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="staff"
+            element={
+              <AdminRoute>
+                <ViewStaff />
+              </AdminRoute>
+            }
+          />
+
         </Route>
 
-        {/* Redirect unknown routes to login */}
-        <Route path="*" element={<Login />} />
+        {/* ✅ FALLBACK */}
+        <Route path="*" element={<Navigate to="/" />} />
+
       </Routes>
     </BrowserRouter>
   );
