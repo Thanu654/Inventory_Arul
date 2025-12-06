@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const Topbar = ({ onLogout }) => {
   const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const navigate = useNavigate();
+  const name = localStorage.getItem('name') || 'User';
+  const email = localStorage.getItem('email') || 'user@example.com';
+  const role = localStorage.getItem('role') || 'User';
+
 
   const UserIcon = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -35,13 +41,12 @@ const Topbar = ({ onLogout }) => {
   );
 
   const handleLogout = () => {
-    if (onLogout) {
-      onLogout();
-    } else {
-      console.log('Logging out...');
-      // Add your logout logic here
-    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('name');
+    localStorage.removeItem('email');
     setShowUserMenu(false);
+    navigate('/');
   };
 
   const getPageTitle = () => {
@@ -62,6 +67,7 @@ const Topbar = ({ onLogout }) => {
     }
   };
 
+
   return (
     <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm">
       {/* Left side: Page Title */}
@@ -79,10 +85,10 @@ const Topbar = ({ onLogout }) => {
             className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
-              <span className="text-white font-semibold">AU</span>
+              <span className="text-white font-semibold"><UserIcon/></span>
             </div>
             <div className="text-left hidden md:block">
-              <p className="font-medium text-gray-900">Admin User</p>
+              <p className="font-medium text-gray-900">{role}</p> 
               <p className="text-sm text-gray-500">Inventory Manager</p>
             </div>
           </button>
@@ -98,8 +104,9 @@ const Topbar = ({ onLogout }) => {
               
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-20 border border-gray-200">
                 <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-medium text-gray-900">Admin User</p>
-                  <p className="text-xs text-gray-500">admin@inventory.com</p>
+                <span className="text-white font-semibold">{name.split(' ').map(n=>n[0]).join('')}</span>
+                      <p className="font-medium text-gray-900">{name}</p>
+                      <p className="text-xs text-gray-500">{email}</p>
                 </div>
                 
                 <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
