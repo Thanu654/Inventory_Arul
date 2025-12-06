@@ -5,6 +5,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
 import db from "./config/db.js";
+import authRoutes from './routes/authRoutes.js';
+import bcrypt from 'bcryptjs';
+
 
 dotenv.config();
 
@@ -39,6 +42,7 @@ app.get("/api/health", async (req, res) => {
 });
 
 // API routes
+app.use("/api", authRoutes);
 app.use("/api", inventoryRoutes);
 
 // Error handling middleware
@@ -57,6 +61,7 @@ async function testDatabaseConnection() {
     try {
       await db.query("USE inventory_db");
       console.log("✅ Database 'inventory_db' found");
+      console.log('⚠️ Login email: admin@gmail.com, password: admin123');
     } catch (dbError) {
       console.log("⚠️  Database 'inventory_db' not found. Please create it using phpMyAdmin.");
       console.log("SQL to run in phpMyAdmin:");
@@ -73,10 +78,28 @@ async function testDatabaseConnection() {
     }
   }
 }
-
+// add admin in database
+async function ensureAdminExists() {
+  try {
+    const [rows] = await db.query('SELECT * FROM users WHERE email = ?', ['admin@gmail.com']);
+    if (rows.length > 0) {
+      console.log('⚠️  Admin already exists in the database.');
+    } else {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await db.query(
+        'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+        ['Admin User', 'admin@gmail.com', hashedPassword, 'admin']
+      );
+      console.log('✅ Admin user inserted successfully!');
+    }
+  } catch (err) {
+    console.error('❌ Error checking/inserting admin:', err.message);
+  }
+}
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
   testDatabaseConnection();
+  ensureAdminExists();
 });
