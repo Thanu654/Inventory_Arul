@@ -1,21 +1,108 @@
 /* Login.css */
 .login-background {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
   background-image: linear-gradient(rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05)),
-    url('https://images.unsplash.com/photo-1557683316-973673baf926?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+    url('../assets/backlog.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
-  min-height: 100vh;
 }
 
-/* Alternatively, use a local background image */
-/* .login-background {
-  background-image: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)),
-    url('../assets/login-bg.jpg');
-} */
+/* Container for both image and form - REDUCED SIZE */
+.login-container {
+  display: flex;
+  max-width: 850px; /* Reduced from 1000px */
+  width: 100%;
+  height: 520px; /* Reduced from 600px */
+  border-radius: 20px; /* Slightly smaller radius */
+  overflow: hidden;
+  box-shadow: 0 15px 30px rgba(10, 56, 12, 0.2); /* Softer shadow */
+  background: white;
+  border: 2px solid rgb(15, 58, 29); /* Thinner border */
+}
 
-/* Custom animations */
+/* Image section */
+.login-image-container {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.login-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.5s ease;
+}
+
+.login-image-container:hover img {
+  transform: scale(1.05);
+}
+
+/* Form section */
+.login-form-container {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem; /* Reduced padding */
+  background: white;
+  position: relative;
+  background: linear-gradient(to right, #e6f8e1ea, #cfe7c0e1);
+}
+
+/* Decorative elements for form */
+.login-form-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px; /* Thinner decorative line */
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .login-container {
+    flex-direction: column;
+    height: auto;
+    max-width: 400px; /* Reduced for mobile */
+  }
+  
+  .login-image-container {
+    height: 200px; /* Smaller image on mobile */
+    width: 100%;
+  }
+  
+  .login-form-container {
+    width: 100%;
+    padding: 1.25rem; /* Reduced padding for mobile */
+  }
+}
+
+/* Additional responsive for very small screens */
+@media (max-width: 480px) {
+  .login-container {
+    max-width: 350px;
+    border-radius: 16px;
+  }
+  
+  .login-background {
+    padding: 1rem;
+  }
+}
+
+/* Animation for form entry */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -27,82 +114,129 @@
   }
 }
 
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.login-card {
+.login-form-container > div {
   animation: fadeInUp 0.6s ease-out;
+  width: 100%;
+  max-width: 350px; /* Reduced max-width for form content */
 }
 
-.floating-icon {
-  animation: float 3s ease-in-out infinite;
+/* Form specific styles */
+.form-card {
+  width: 100%;
+  background: transparent;
+  box-shadow: none;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
+.form-header {
+  text-align: center;
+  margin-bottom: 2rem; /* Slightly reduced margin */
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
+.form-header h1 {
+  font-size: 1.75rem; /* Smaller font size */
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
 }
 
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #4f46e5, #7c3aed);
-  border-radius: 10px;
+.form-header p {
+  color: #6b7280;
+  font-size: 0.9rem; /* Slightly smaller */
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, #4338ca, #6d28d9);
-}
-
-/* Form input focus effects */
+/* Input focus effects */
 .form-input:focus {
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-/* Loading spinner */
-.spinner {
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #4f46e5;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
+/* Button hover effects */
+.login-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.2); /* Softer shadow */
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+/* Remember me checkbox styling */
+.checkbox-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 
-/* Responsive adjustments */
-@media (max-width: 640px) {
-  .login-background {
-    background-attachment: scroll;
-  }
-  
-  .login-card {
-    margin: 1rem;
-    width: calc(100% - 2rem);
-  }
+.checkbox-container input[type="checkbox"] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  margin-right: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .login-background {
-    background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
-      url('https://images.unsplash.com/photo-1557683316-973673baf926?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
-  }
-  
-  .login-container {
-    background: rgba(17, 24, 39, 0.8);
-  }
+.checkbox-container input[type="checkbox"]:checked {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.checkbox-container input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Demo account button */
+.demo-button {
+  transition: all 0.2s;
+}
+
+.demo-button:hover {
+  transform: translateX(2px);
+}
+
+/* Forgot password link */
+.forgot-password {
+  transition: all 0.2s;
+}
+
+.forgot-password:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Password visibility toggle */
+.password-toggle {
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  color: #4b5563;
+}
+
+/* Form spacing */
+.form-spacing > * + * {
+  margin-top: 1.25rem; /* Slightly reduced spacing */
 }

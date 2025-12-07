@@ -3,7 +3,7 @@ import axios from '../components/api/axiosInstance';
 import { useNavigate } from 'react-router-dom';
 import { FiMail, FiLock, FiLogIn, FiEye, FiEyeOff } from 'react-icons/fi';
 import './Login.css'; // For custom styles if needed
-
+import loginImg from "../assets/login.png";
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,24 +48,24 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center login-background bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="absolute inset-0 bg-black opacity-10"></div>
-      
-      <div className="relative w-full max-w-md z-10">
-        {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden backdrop-blur-sm bg-white/95">
-          
-          {/* Decorative Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full mb-4">
-              <FiLogIn className="w-8 h-8 text-blue-600" />
+  <div className="login-background">
+    <div className="login-container">
+      <div className="login-image-container">
+        <img src={loginImg} alt="Login Illustration" />
+      </div>
+      <div className="login-form-container">
+        <div className="form-card">
+          {/* Form Header */}
+          <div className="form-header">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full mb-4">
+              <FiLogIn className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
-            <p className="text-blue-100">Sign in to your account to continue</p>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome Back</h1>
+            <p className="text-gray-600">Sign in to your account to continue</p>
           </div>
 
           {/* Login Form */}
-          <div className="p-8">
+          <div className="p-1">
             <form onSubmit={handleLogin} className="space-y-6">
               {/* Email Input */}
               <div className="space-y-2">
@@ -173,69 +173,11 @@ export default function Login() {
                   </span>
                 )}
               </button>
-
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
-                </div>
-              </div>
-
-              {/* Social Login */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  className="w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.666-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.787-.94 1.324-2.245 1.171-3.54-1.133.052-2.518.754-3.334 1.701-.735.85-1.389 2.207-1.208 3.514 1.26.091 2.544-.629 3.371-1.675z"/>
-                  </svg>
-                  Apple
-                </button>
-                <button
-                  type="button"
-                  className="w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M20.283 10.356h-8.327v3.451h4.792c-.446 2.193-2.313 3.453-4.792 3.453a5.27 5.27 0 0 1-5.279-5.28 5.27 5.27 0 0 1 5.279-5.279c1.259 0 2.397.447 3.29 1.178l2.6-2.599c-1.584-1.381-3.615-2.233-5.89-2.233a8.908 8.908 0 0 0-8.934 8.934 8.907 8.907 0 0 0 8.934 8.934c4.467 0 8.529-3.249 8.529-8.934 0-.528-.081-1.097-.202-1.625z"/>
-                  </svg>
-                  Google
-                </button>
-              </div>
-
-              {/* Sign Up Link */}
-              <div className="text-center pt-4 border-t border-gray-100">
-                <p className="text-sm text-gray-600">
-                  Don't have an account?{' '}
-                  <a 
-                    href="/signup" 
-                    className="font-medium text-blue-600 hover:text-blue-800 transition-colors duration-200"
-                  >
-                    Sign up now
-                  </a>
-                </p>
-              </div>
             </form>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="text-center mt-6">
-          <p className="text-gray-600 text-sm">
-            By signing in, you agree to our{' '}
-            <a href="/terms" className="text-blue-600 hover:text-blue-800 transition-colors duration-200">
-              Terms of Service
-            </a>{' '}
-            and{' '}
-            <a href="/privacy" className="text-blue-600 hover:text-blue-800 transition-colors duration-200">
-              Privacy Policy
-            </a>
-          </p>
-        </div>
       </div>
+    </div>
     </div>
   );
 }
