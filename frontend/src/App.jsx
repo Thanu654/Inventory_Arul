@@ -4,6 +4,8 @@ import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 
 import Layout from './components/Layout/Layout';
 import ViewInventory from './components/Inventory/ViewInventory';
+import Suppliers from './components/Suppliers/Suppliers';
+import Purchases from './components/Purchases/Purchases';
 import Dashboard from './components/Dashboard/Dashboard';
 import Billing from './components/Billing/Billing';
 import Transactions from './components/Transactions/Transactions';
@@ -41,6 +43,24 @@ function App() {
             element={
               <PermissionRoute page="inventory">
                 <ViewInventory />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="suppliers"
+            element={
+              <PermissionRoute page="inventory">
+                <Suppliers />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="purchases"
+            element={
+              <PermissionRoute page="inventory">
+                <Purchases />
               </PermissionRoute>
             }
           />

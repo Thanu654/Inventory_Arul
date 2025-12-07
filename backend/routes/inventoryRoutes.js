@@ -8,9 +8,19 @@ import {
   getCategories, 
   addCategory, 
   deleteCategory,
+  getSubcategories,
+  addSubcategory,
+  deleteSubcategory,
+  getSuppliers,
+  addSupplier,
+  updateSupplier,
+  deleteSupplier,
   createPurchase,
+  createStockPurchase,
   getPurchases,
   getPurchaseDetails,
+  addPayment,
+  getDuePurchases,
   updatePurchase,
   deletePurchase,
   getAlertSettings,
@@ -47,12 +57,28 @@ router.get("/categories", getCategories);
 router.post("/categories", addCategory);
 router.delete("/categories/:id", deleteCategory);
 
+// Subcategories routes
+router.get('/subcategories', getSubcategories);
+router.post('/subcategories', addSubcategory);
+router.delete('/subcategories/:id', deleteSubcategory);
+
+// Suppliers routes
+router.get('/suppliers', getSuppliers);
+router.post('/suppliers', addSupplier);
+router.put('/suppliers/:id', updateSupplier);
+router.delete('/suppliers/:id', deleteSupplier);
+
 // Purchases routes
 router.post("/purchases", createPurchase);
 router.get("/purchases", getPurchases);
+router.get('/purchases/due', getDuePurchases);
 router.get("/purchases/:id", getPurchaseDetails);
 router.put("/purchases/:id", updatePurchase);
 router.delete("/purchases/:id", deletePurchase);
+// Receive stock (purchase from supplier) - increases item quantities
+router.post('/purchases/receive', createStockPurchase);
+// Record payment against a purchase
+router.post('/purchases/:id/payments', addPayment);
 
 // Alert/Notification routes
 router.get("/alert-settings", getAlertSettings);

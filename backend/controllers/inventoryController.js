@@ -18,6 +18,8 @@ export const getItems = async (req, res) => {
 export const addItem = async (req, res) => {
   try {
     const { name, description, quantity, price, category } = req.body;
+    // cost_price may be sent as 'cost_price' (from FormData) or 'costPrice'
+    const cost_price = req.body.cost_price ?? req.body.costPrice ?? null;
     const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
     
     if (!name || quantity === undefined || price === undefined) {
@@ -25,14 +27,14 @@ export const addItem = async (req, res) => {
     }
 
     const [result] = await db.query(
-      "INSERT INTO items (name, description, quantity, price, category, image) VALUES (?, ?, ?, ?, ?, ?)",
-      [name, description || null, parseInt(quantity), parseFloat(price), category || null, imagePath]
+      "INSERT INTO items (name, description, quantity, price, cost_price, category, image) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [name, description || null, parseInt(quantity), parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, imagePath]
     );
     
     res.status(201).json({ 
       message: "Item added successfully", 
       id: result.insertId,
-      item: { id: result.insertId, name, description, quantity: parseInt(quantity), price: parseFloat(price), category, image: imagePath }
+      item: { id: result.insertId, name, description, quantity: parseInt(quantity), price: parseFloat(price), cost_price: cost_price !== null ? parseFloat(cost_price) : null, category, image: imagePath }
     });
   } catch (error) {
     console.error("Error adding item:", error);
@@ -44,6 +46,7 @@ export const updateItem = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, quantity, price, category } = req.body;
+    const cost_price = req.body.cost_price ?? req.body.costPrice ?? null;
     const newImagePath = req.file ? `/uploads/${req.file.filename}` : null;
     
     if (!name || quantity === undefined || price === undefined) {
@@ -65,11 +68,11 @@ export const updateItem = async (req, res) => {
     // Update query with or without image
     let updateQuery, updateParams;
     if (newImagePath) {
-      updateQuery = "UPDATE items SET name = ?, description = ?, quantity = ?, price = ?, category = ?, image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-      updateParams = [name, description || null, parseInt(quantity), parseFloat(price), category || null, newImagePath, parseInt(id)];
+      updateQuery = "UPDATE items SET name = ?, description = ?, quantity = ?, price = ?, cost_price = ?, category = ?, image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+      updateParams = [name, description || null, parseInt(quantity), parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, newImagePath, parseInt(id)];
     } else {
-      updateQuery = "UPDATE items SET name = ?, description = ?, quantity = ?, price = ?, category = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-      updateParams = [name, description || null, parseInt(quantity), parseFloat(price), category || null, parseInt(id)];
+      updateQuery = "UPDATE items SET name = ?, description = ?, quantity = ?, price = ?, cost_price = ?, category = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+      updateParams = [name, description || null, parseInt(quantity), parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, parseInt(id)];
     }
 
     const [result] = await db.query(updateQuery, updateParams);
@@ -86,6 +89,7 @@ export const updateItem = async (req, res) => {
         description, 
         quantity: parseInt(quantity), 
         price: parseFloat(price), 
+        cost_price: cost_price !== null ? parseFloat(cost_price) : null,
         category,
         image: newImagePath || currentItem[0].image
       }
@@ -192,6 +196,121 @@ export const deleteCategory = async (req, res) => {
   }
 };
 
+// Suppliers CRUD
+export const getSuppliers = async (req, res) => {
+  try {
+    const [suppliers] = await db.query('SELECT * FROM suppliers ORDER BY name');
+    res.json(suppliers);
+  } catch (error) {
+    console.error('Error fetching suppliers:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
+  }
+};
+
+export const addSupplier = async (req, res) => {
+  try {
+    const { name, contact_person, phone, email, address, notes } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ message: 'Supplier name is required' });
+
+    const [result] = await db.query('INSERT INTO suppliers (name, contact_person, phone, email, address, notes) VALUES (?, ?, ?, ?, ?, ?)',
+      [name.trim(), contact_person || null, phone || null, email || null, address || null, notes || null]
+    );
+    res.status(201).json({ message: 'Supplier added', id: result.insertId, supplier: { id: result.insertId, name: name.trim(), contact_person, phone, email, address, notes } });
+  } catch (error) {
+    console.error('Error adding supplier:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
+  }
+};
+
+export const updateSupplier = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, contact_person, phone, email, address, notes } = req.body;
+    const [result] = await db.query('UPDATE suppliers SET name = ?, contact_person = ?, phone = ?, email = ?, address = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [name, contact_person || null, phone || null, email || null, address || null, notes || null, parseInt(id)]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ message: 'Supplier not found' });
+    res.json({ message: 'Supplier updated' });
+  } catch (error) {
+    console.error('Error updating supplier:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
+  }
+};
+
+export const deleteSupplier = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [result] = await db.query('DELETE FROM suppliers WHERE id = ?', [parseInt(id)]);
+    if (result.affectedRows === 0) return res.status(404).json({ message: 'Supplier not found' });
+    res.json({ message: 'Supplier deleted' });
+  } catch (error) {
+    console.error('Error deleting supplier:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
+  }
+};
+
+// Subcategory management
+export const getSubcategories = async (req, res) => {
+  try {
+    const { categoryId } = req.query;
+    let query = "SELECT * FROM subcategories";
+    const params = [];
+    if (categoryId) {
+      query += " WHERE category_id = ?";
+      params.push(parseInt(categoryId));
+    }
+    query += " ORDER BY name";
+
+    const [result] = await db.query(query, params);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching subcategories:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
+  }
+};
+
+export const addSubcategory = async (req, res) => {
+  try {
+    const { categoryId, name } = req.body;
+    if (!categoryId || !name || !name.trim()) {
+      return res.status(400).json({ message: 'Category ID and subcategory name are required' });
+    }
+
+    // Check parent category exists
+    const [cat] = await db.query('SELECT id FROM categories WHERE id = ?', [parseInt(categoryId)]);
+    if (cat.length === 0) {
+      return res.status(404).json({ message: 'Parent category not found' });
+    }
+
+    // Prevent duplicate subcategory names under same category
+    const [existing] = await db.query('SELECT id FROM subcategories WHERE category_id = ? AND name = ?', [parseInt(categoryId), name.trim()]);
+    if (existing.length > 0) {
+      return res.status(409).json({ message: 'Subcategory already exists for this category' });
+    }
+
+    const [result] = await db.query('INSERT INTO subcategories (category_id, name) VALUES (?, ?)', [parseInt(categoryId), name.trim()]);
+    res.status(201).json({ message: 'Subcategory added', id: result.insertId, subcategory: { id: result.insertId, category_id: parseInt(categoryId), name: name.trim() } });
+  } catch (error) {
+    console.error('Error adding subcategory:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
+  }
+};
+
+export const deleteSubcategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [result] = await db.query('DELETE FROM subcategories WHERE id = ?', [parseInt(id)]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Subcategory not found' });
+    }
+    // Optionally, items.subcategory_id referencing this will be set to NULL due to FK ON DELETE SET NULL
+    res.json({ message: 'Subcategory deleted' });
+  } catch (error) {
+    console.error('Error deleting subcategory:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
+  }
+};
+
 // Purchase Management
 export const createPurchase = async (req, res) => {
   const connection = await db.getConnection();
@@ -255,17 +374,81 @@ export const createPurchase = async (req, res) => {
   }
 };
 
+// Create a purchase/stock-receipt that INCREASES item quantities (when buying stock)
+export const createStockPurchase = async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    const { billNumber, customerName, totalAmount, paymentMethod, items, supplierId, invoiceDate, dueDate, paymentStatus } = req.body;
+
+    if (!billNumber || !items || items.length === 0) {
+      return res.status(400).json({ message: "Bill number and items are required" });
+    }
+
+    await connection.beginTransaction();
+
+    // Create purchase record (mark as supplier purchase)
+    const [purchaseResult] = await connection.query(
+      "INSERT INTO purchases (bill_number, customer_name, total_amount, payment_method, supplier_id, invoice_date, due_date, payment_status, purchase_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'supplier')",
+      [billNumber, customerName || 'Supplier', totalAmount, paymentMethod || 'Cash', supplierId || null, invoiceDate || null, dueDate || null, paymentStatus || 'pending']
+    );
+
+    const purchaseId = purchaseResult.insertId;
+    const updatedItems = [];
+
+    for (const item of items) {
+      // Ensure item exists
+      const [stockCheck] = await connection.query("SELECT quantity FROM items WHERE id = ?", [item.itemId]);
+      if (stockCheck.length === 0) {
+        throw new Error(`Item with ID ${item.itemId} not found`);
+      }
+
+      // Insert purchase item
+      await connection.query(
+        "INSERT INTO purchase_items (purchase_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, ?, ?, ?, ?, ?)",
+        [purchaseId, item.itemId, item.itemName, item.itemPrice, item.quantity, item.totalPrice]
+      );
+
+      // Increase item quantity (because this is stock coming in)
+      await connection.query(
+        "UPDATE items SET quantity = quantity + ? WHERE id = ?",
+        [item.quantity, item.itemId]
+      );
+
+      // Return updated quantity for client
+      const [afterUpdate] = await connection.query("SELECT quantity FROM items WHERE id = ?", [item.itemId]);
+      updatedItems.push({ itemId: item.itemId, newQuantity: afterUpdate[0].quantity });
+    }
+
+    await connection.commit();
+
+    res.status(201).json({ message: "Stock purchase recorded", purchaseId, updatedItems });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Error creating stock purchase:", error);
+    res.status(500).json({ message: "Database Error", error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
 export const getPurchases = async (req, res) => {
   try {
-    const [purchases] = await db.query(`
-      SELECT p.*, 
-             COUNT(pi.id) as item_count 
-      FROM purchases p 
-      LEFT JOIN purchase_items pi ON p.id = pi.purchase_id 
-      GROUP BY p.id 
-      ORDER BY p.created_at DESC
-    `);
-    
+    const { type } = req.query; // e.g., type=supplier
+    // Include paid amount (sum of payments) so frontend can determine status and due date visibility
+    let query = `
+      SELECT p.*, COUNT(pi.id) as item_count, IFNULL(SUM(pay.amount),0) as paid_amount
+      FROM purchases p
+      LEFT JOIN purchase_items pi ON p.id = pi.purchase_id
+      LEFT JOIN payments pay ON pay.purchase_id = p.id
+    `;
+    const params = [];
+    if (type === 'supplier') {
+      query += ' WHERE p.purchase_type = ?';
+      params.push('supplier');
+    }
+    query += ' GROUP BY p.id ORDER BY p.created_at DESC';
+
+    const [purchases] = await db.query(query, params);
     res.json(purchases);
   } catch (error) {
     console.error("Error fetching purchases:", error);
@@ -294,14 +477,105 @@ export const getPurchaseDetails = async (req, res) => {
       FROM purchase_items
       WHERE purchase_id = ?
     `, [parseInt(id)]);
-    
+
+    // Get payments for this purchase and include payer info (if linked to users)
+    const [payments] = await db.query(`
+      SELECT pay.id, pay.amount, pay.method, pay.note, pay.paid_at, pay.paid_by, pay.paid_by_id, u.name as paid_by_name, u.role as paid_by_role
+      FROM payments pay
+      LEFT JOIN users u ON pay.paid_by_id = u.id
+      WHERE pay.purchase_id = ?
+      ORDER BY pay.paid_at ASC
+    `, [parseInt(id)]);
+    const paidAmount = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+    const totalAmount = parseFloat(purchase[0].total_amount || 0);
+    const balance = parseFloat((totalAmount - paidAmount).toFixed(2));
+
     res.json({
       purchase: purchase[0],
-      items: items
+      items: items,
+      payments: payments,
+      paidAmount: paidAmount,
+      balance: balance
     });
   } catch (error) {
     console.error("Error fetching purchase details:", error);
     res.status(500).json({ message: "Database Error", error: error.message });
+  }
+};
+
+// Record a payment against a purchase (invoice)
+export const addPayment = async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    const { id } = req.params; // purchase id
+    const { amount, method, note } = req.body;
+
+    if (!amount || parseFloat(amount) <= 0) {
+      return res.status(400).json({ message: 'Payment amount must be greater than zero' });
+    }
+
+    await connection.beginTransaction();
+
+    // Ensure purchase exists
+    const [pRows] = await connection.query('SELECT id, total_amount FROM purchases WHERE id = ?', [parseInt(id)]);
+    if (pRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Purchase not found' });
+    }
+
+    // Insert payment (accept optional paid_by_id referencing users.id)
+    const paidBy = req.body.paid_by || req.body.paidBy || null;
+    const paidById = req.body.paid_by_id || req.body.paidById || null;
+
+    // If frontend only sent a payer name, try to resolve to a user id (best-effort)
+    let finalPaidById = paidById;
+    if (!finalPaidById && paidBy) {
+      const [userMatch] = await connection.query('SELECT id FROM users WHERE name = ? LIMIT 1', [paidBy]);
+      if (userMatch.length > 0) finalPaidById = userMatch[0].id;
+    }
+
+    const [payResult] = await connection.query('INSERT INTO payments (purchase_id, amount, method, paid_by, paid_by_id, note, paid_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)', [parseInt(id), parseFloat(amount), method || 'Cash', paidBy, finalPaidById, note || null]);
+
+    // Compute total paid
+    const [paidSumRows] = await connection.query('SELECT IFNULL(SUM(amount),0) as paid FROM payments WHERE purchase_id = ?', [parseInt(id)]);
+    const paid = parseFloat(paidSumRows[0].paid || 0);
+    const total = parseFloat(pRows[0].total_amount || 0);
+
+    // Determine status
+    let status = 'pending';
+    if (paid >= total) status = 'paid';
+    else if (paid > 0) status = 'partial';
+
+    // Update purchase payment_status
+    await connection.query('UPDATE purchases SET payment_status = ? WHERE id = ?', [status, parseInt(id)]);
+
+    await connection.commit();
+
+    res.status(201).json({ message: 'Payment recorded', paymentId: payResult.insertId, paidAmount: paid, totalAmount: total, paymentStatus: status });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error recording payment:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
+// Get purchases that are due (due_date <= today and not fully paid)
+export const getDuePurchases = async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT p.*, IFNULL(SUM(pay.amount),0) as paid_amount
+      FROM purchases p
+      LEFT JOIN payments pay ON pay.purchase_id = p.id
+      WHERE p.due_date IS NOT NULL AND p.due_date <= CURDATE() AND (p.payment_status IS NULL OR p.payment_status != 'paid')
+      GROUP BY p.id
+      ORDER BY p.due_date ASC
+    `);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching due purchases:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
   }
 };
 

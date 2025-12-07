@@ -11,6 +11,12 @@ const ViewInventory = () => {
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, item: null });
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
   const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
+  const [suppliersList, setSuppliersList] = useState([]);
+  const [expandedCategoryId, setExpandedCategoryId] = useState(null);
+  const [newSubcategoryName, setNewSubcategoryName] = useState('');
+  const [subcatLoading, setSubcatLoading] = useState(false);
+  const [subcatDeleteConfirm, setSubcatDeleteConfirm] = useState({ show: false, subcategory: null });
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState({ name: '' });
   const [categoryLoading, setCategoryLoading] = useState(false);
@@ -20,6 +26,8 @@ const ViewInventory = () => {
   const [isUpdateQuantityModalOpen, setIsUpdateQuantityModalOpen] = useState(false);
   const [updateQuantityData, setUpdateQuantityData] = useState({ itemId: '', additionalQuantity: '' });
   const [updateQuantityLoading, setUpdateQuantityLoading] = useState(false);
+  const [createInvoice, setCreateInvoice] = useState(false);
+  const [invoiceData, setInvoiceData] = useState({ billNumber: '', supplierId: '', customerName: '', invoiceDate: '', dueDate: '', paymentMethod: 'Cash', paymentStatus: 'pending', pricePerUnit: '' });
   const [itemSearchTerm, setItemSearchTerm] = useState('');
   const [isItemDropdownOpen, setIsItemDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -63,7 +71,31 @@ const ViewInventory = () => {
   useEffect(() => {
     fetchItems();
     fetchCategories();
+    fetchSubcategories();
+    fetchSuppliers();
   }, []);
+
+  const fetchSubcategories = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/subcategories`);
+      if (!response.ok) throw new Error('Failed to fetch subcategories');
+      const data = await response.json();
+      setSubcategories(data);
+    } catch (err) {
+      console.error('Error fetching subcategories:', err);
+    }
+  };
+
+  const fetchSuppliers = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/suppliers`);
+      if (!response.ok) throw new Error('Failed to fetch suppliers');
+      const data = await response.json();
+      setSuppliersList(data);
+    } catch (err) {
+      console.error('Error fetching suppliers:', err);
+    }
+  };
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -181,6 +213,8 @@ const ViewInventory = () => {
       setCategories(prev => [...prev, result.category]);
       setCategoryFormData({ name: '' }); // Clear form but keep modal open
       showToast('Category added successfully!', 'success');
+      // refresh subcategories in case
+      fetchSubcategories();
     } catch (err) {
       showToast('Failed to add category: ' + err.message, 'error');
     } finally {
@@ -190,6 +224,62 @@ const ViewInventory = () => {
 
   const confirmDeleteCategory = (category) => {
     setCategoryDeleteConfirm({ show: true, category });
+  };
+
+  const toggleCategoryExpand = (categoryId) => {
+    setExpandedCategoryId(prev => prev === categoryId ? null : categoryId);
+  };
+
+  const handleNewSubcategoryChange = (e) => {
+    setNewSubcategoryName(e.target.value);
+  };
+
+  const handleAddSubcategory = async (categoryId, e) => {
+    e.preventDefault();
+    if (!newSubcategoryName.trim()) {
+      showToast('Subcategory name is required', 'error');
+      return;
+    }
+    try {
+      setSubcatLoading(true);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/subcategories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoryId: categoryId, name: newSubcategoryName.trim() })
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || 'Failed to add subcategory');
+      }
+      const result = await response.json();
+      setSubcategories(prev => [...prev, result.subcategory]);
+      setNewSubcategoryName('');
+      showToast('Subcategory added!', 'success');
+    } catch (err) {
+      showToast('Failed to add subcategory: ' + err.message, 'error');
+    } finally {
+      setSubcatLoading(false);
+    }
+  };
+
+  const confirmDeleteSubcategory = (subcat) => {
+    setSubcatDeleteConfirm({ show: true, subcategory: subcat });
+  };
+
+  const handleDeleteSubcategory = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/subcategories/${subcatDeleteConfirm.subcategory.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete subcategory');
+      setSubcategories(prev => prev.filter(s => s.id !== subcatDeleteConfirm.subcategory.id));
+      setSubcatDeleteConfirm({ show: false, subcategory: null });
+      showToast('Subcategory deleted', 'success');
+    } catch (err) {
+      showToast('Failed to delete subcategory: ' + err.message, 'error');
+    }
+  };
+
+  const cancelDeleteSubcategory = () => {
+    setSubcatDeleteConfirm({ show: false, subcategory: null });
   };
 
   const handleDeleteCategory = async () => {
@@ -270,6 +360,16 @@ const ViewInventory = () => {
     setIsUpdateQuantityModalOpen(true);
   };
 
+  const openInvoiceModal = (item) => {
+    // Pre-fill the update form for creating a supplier purchase (invoice)
+    setUpdateQuantityData({ itemId: item.id, additionalQuantity: '' });
+    setItemSearchTerm(item.name);
+    setIsItemDropdownOpen(false);
+    setInvoiceData(prev => ({ ...prev, pricePerUnit: item.cost_price ?? item.costPrice ?? item.price ?? '' }));
+    setCreateInvoice(true);
+    setIsUpdateQuantityModalOpen(true);
+  };
+
   const closeUpdateQuantityModal = () => {
     setIsUpdateQuantityModalOpen(false);
     setUpdateQuantityData({ itemId: '', additionalQuantity: '' });
@@ -300,6 +400,8 @@ const ViewInventory = () => {
     setUpdateQuantityData(prev => ({ ...prev, itemId: item.id }));
     setItemSearchTerm(item.name);
     setIsItemDropdownOpen(false);
+    // set default invoice unit price to cost_price if available
+    setInvoiceData(prev => ({ ...prev, pricePerUnit: item.cost_price ?? item.costPrice ?? item.price ?? '' }));
   };
 
   const handleItemSearchFocus = () => {
@@ -323,6 +425,11 @@ const ViewInventory = () => {
     }));
   };
 
+  const handleInvoiceChange = (e) => {
+    const { name, value } = e.target;
+    setInvoiceData(prev => ({ ...prev, [name]: value }));
+  };
+
   const handleUpdateQuantity = async (e) => {
     e.preventDefault();
     
@@ -339,35 +446,88 @@ const ViewInventory = () => {
 
     try {
       setUpdateQuantityLoading(true);
-      
+
       const selectedItem = items.find(item => item.id == updateQuantityData.itemId);
-      const newQuantity = selectedItem.quantity + additionalQty;
-      
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/items/${updateQuantityData.itemId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...selectedItem,
-          quantity: newQuantity
-        }),
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update quantity');
+      if (createInvoice) {
+        // Build purchase payload using invoiceData and cost price
+        const unitPrice = invoiceData.pricePerUnit !== '' ? parseFloat(invoiceData.pricePerUnit) : parseFloat(selectedItem.cost_price ?? selectedItem.costPrice ?? selectedItem.price ?? 0);
+        const itemQty = additionalQty;
+        const totalPrice = parseFloat((unitPrice * itemQty).toFixed(2));
+        const payload = {
+          billNumber: invoiceData.billNumber || `INV-${Date.now()}`,
+          supplierId: invoiceData.supplierId && invoiceData.supplierId !== '__other' ? invoiceData.supplierId : null,
+          supplierName: invoiceData.supplierId === '__other' ? (invoiceData.customerName || 'Supplier') : (invoiceData.customerName || ''),
+          totalAmount: totalPrice,
+          paymentMethod: invoiceData.paymentMethod || 'Cash',
+          invoiceDate: invoiceData.invoiceDate || null,
+          dueDate: invoiceData.dueDate || null,
+          paymentStatus: invoiceData.paymentStatus || 'pending',
+          items: [
+            {
+              itemId: selectedItem.id,
+              itemName: selectedItem.name,
+              itemPrice: unitPrice,
+              quantity: itemQty,
+              totalPrice: totalPrice
+            }
+          ]
+        };
+
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/purchases/receive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to record purchase');
+        }
+
+        const result = await response.json();
+        // result.updatedItems contains new quantities
+        if (result.updatedItems && Array.isArray(result.updatedItems)) {
+          setItems(prevItems => prevItems.map(it => {
+            const found = result.updatedItems.find(u => u.itemId == it.id);
+            return found ? { ...it, quantity: found.newQuantity } : it;
+          }));
+        } else {
+          // Fallback: manually update local quantity
+          const newQuantity = selectedItem.quantity + additionalQty;
+          setItems(prevItems => prevItems.map(item => item.id == selectedItem.id ? { ...item, quantity: newQuantity } : item));
+        }
+
+        clearUpdateQuantityForm();
+        showToast(`Purchase recorded and stock updated (+${additionalQty}).`, 'success');
+      } else {
+        // Simple quantity update (no invoice)
+        const newQuantity = selectedItem.quantity + additionalQty;
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/items/${updateQuantityData.itemId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...selectedItem,
+            quantity: newQuantity
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to update quantity');
+        }
+
+        setItems(prevItems => 
+          prevItems.map(item => 
+            item.id == updateQuantityData.itemId ? { ...item, quantity: newQuantity } : item
+          )
+        );
+
+        clearUpdateQuantityForm(); // Clear form but keep modal open
+        showToast(`Quantity updated! Added ${additionalQty} units. New total: ${newQuantity}`, 'success');
       }
-
-      const result = await response.json();
-      setItems(prevItems => 
-        prevItems.map(item => 
-          item.id == updateQuantityData.itemId ? { ...item, quantity: newQuantity } : item
-        )
-      );
-      
-      clearUpdateQuantityForm(); // Clear form but keep modal open
-      showToast(`Quantity updated! Added ${additionalQty} units. New total: ${newQuantity}`, 'success');
     } catch (err) {
       showToast('Failed to update quantity: ' + err.message, 'error');
     } finally {
@@ -593,6 +753,15 @@ const ViewInventory = () => {
                             Edit
                           </button>
                           <button
+                            onClick={() => openInvoiceModal(item)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md transition duration-200 inline-flex items-center"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m2 0a2 2 0 012 2v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4a2 2 0 012-2m3-7h6l1 5H8l1-5z" />
+                            </svg>
+                            Invoice
+                          </button>
+                          <button
                             onClick={() => confirmDelete(item)}
                             className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md transition duration-200 inline-flex items-center"
                           >
@@ -734,6 +903,7 @@ const ViewInventory = () => {
                 isEditMode={isEditMode}
                 initialData={editingItem}
                 categories={categories}
+                subcategories={subcategories}
               />
             </div>
           </div>
@@ -820,6 +990,65 @@ const ViewInventory = () => {
                     required
                   />
                 </div>
+
+                <div className="flex items-center space-x-3">
+                  <input id="createInvoice" type="checkbox" checked={createInvoice} onChange={(e) => setCreateInvoice(e.target.checked)} className="h-4 w-4 text-blue-600" />
+                  <label htmlFor="createInvoice" className="text-sm text-gray-700">Create Invoice / Purchase (record supplier invoice and cost)</label>
+                </div>
+
+                {createInvoice && (
+                  <div className="space-y-3 bg-gray-50 p-3 rounded-md">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number *</label>
+                      <input type="text" name="billNumber" value={invoiceData.billNumber} onChange={handleInvoiceChange} className="w-full px-3 py-2 border rounded" placeholder="Enter invoice/bill number" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+                      <select name="supplierId" value={invoiceData.supplierId} onChange={handleInvoiceChange} className="w-full px-3 py-2 border rounded">
+                        <option value="">Select supplier (or leave blank)</option>
+                        {suppliersList.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                        <option value="__other">Other (enter name below)</option>
+                      </select>
+                      {invoiceData.supplierId === '__other' && (
+                        <input type="text" name="customerName" value={invoiceData.customerName} onChange={handleInvoiceChange} className="w-full px-3 py-2 border rounded mt-2" placeholder="Enter supplier name" />
+                      )}
+                    </div>
+                      <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price (use cost price)</label>
+                        <input type="number" name="pricePerUnit" value={invoiceData.pricePerUnit} onChange={handleInvoiceChange} step="0.01" min="0" className="w-full px-3 py-2 border rounded" placeholder="0.00" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                        <select name="paymentMethod" value={invoiceData.paymentMethod} onChange={handleInvoiceChange} className="w-full px-3 py-2 border rounded">
+                          <option>Cash</option>
+                          <option>Bank Transfer</option>
+                          <option>Credit</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 mt-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Date</label>
+                        <input type="date" name="invoiceDate" value={invoiceData.invoiceDate} onChange={handleInvoiceChange} className="w-full px-3 py-2 border rounded" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                        <input type="date" name="dueDate" value={invoiceData.dueDate} onChange={handleInvoiceChange} className="w-full px-3 py-2 border rounded" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
+                        <select name="paymentStatus" value={invoiceData.paymentStatus} onChange={handleInvoiceChange} className="w-full px-3 py-2 border rounded">
+                          <option value="pending">Pending</option>
+                          <option value="paid">Paid</option>
+                          <option value="partial">Partial</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {updateQuantityData.itemId && updateQuantityData.additionalQuantity && (
                   <div className="bg-green-50 p-3 rounded-md">
@@ -921,25 +1150,61 @@ const ViewInventory = () => {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {categories.map((category) => (
-                          <tr key={category.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {category.id}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {category.name}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <button
-                                onClick={() => confirmDeleteCategory(category)}
-                                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md transition duration-200 inline-flex items-center"
-                              >
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
+                          <React.Fragment key={category.id}>
+                            <tr className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {category.id}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {category.name}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                <button
+                                  onClick={() => toggleCategoryExpand(category.id)}
+                                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded-md transition duration-200 inline-flex items-center"
+                                >
+                                  Subcategories
+                                </button>
+                                <button
+                                  onClick={() => confirmDeleteCategory(category)}
+                                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md transition duration-200 inline-flex items-center"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+
+                            {expandedCategoryId === category.id && (
+                              <tr className="bg-gray-50">
+                                <td colSpan={3} className="px-6 py-4">
+                                  <div className="mb-4">
+                                    <h4 className="text-sm font-medium text-gray-800 mb-2">Subcategories for "{category.name}"</h4>
+                                    <div className="space-y-2">
+                                      {subcategories.filter(s => s.category_id === category.id).length === 0 ? (
+                                        <div className="text-sm text-gray-500">No subcategories yet.</div>
+                                      ) : (
+                                        <ul className="text-sm text-gray-700 space-y-1">
+                                          {subcategories.filter(s => s.category_id === category.id).map(sc => (
+                                            <li key={sc.id} className="flex items-center justify-between">
+                                              <span>{sc.name}</span>
+                                              <button onClick={() => confirmDeleteSubcategory(sc)} className="text-red-500 hover:text-red-700 text-sm">Delete</button>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <form onSubmit={(e) => handleAddSubcategory(category.id, e)} className="flex items-center space-x-2">
+                                    <input type="text" value={newSubcategoryName} onChange={handleNewSubcategoryChange} placeholder="New subcategory name" className="px-3 py-2 border border-gray-300 rounded-md w-1/2" />
+                                    <button type="submit" disabled={subcatLoading} className="px-3 py-2 bg-blue-600 text-white rounded-md">{subcatLoading ? 'Adding...' : 'Add Subcategory'}</button>
+                                  </form>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>
@@ -978,6 +1243,43 @@ const ViewInventory = () => {
                 </button>
                 <button
                   onClick={handleDeleteCategory}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subcategory Delete Confirmation Modal */}
+      {subcatDeleteConfirm.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="bg-red-100 rounded-full p-3 mr-4">
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Delete Subcategory</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Are you sure you want to delete the subcategory "{subcatDeleteConfirm.subcategory?.name}"? This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={cancelDeleteSubcategory}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteSubcategory}
                   className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
                 >
                   Delete

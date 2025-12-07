@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 
-const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null, categories = [] }) => {
+const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null, categories = [], subcategories = [] }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     quantity: '',
-    price: '',
+    costPrice: '',
+    sellingPrice: '',
+    subcategoryId: '',
     category: ''
   });
   const [selectedImage, setSelectedImage] = useState(null);
@@ -20,7 +22,9 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
         name: initialData.name || '',
         description: initialData.description || '',
         quantity: initialData.quantity?.toString() || '',
-        price: initialData.price?.toString() || '',
+        costPrice: (initialData.cost_price ?? initialData.costPrice ?? '')?.toString() || '',
+        sellingPrice: (initialData.price ?? initialData.sellingPrice ?? '')?.toString() || '',
+        subcategoryId: initialData.subcategory_id ? String(initialData.subcategory_id) : (initialData.subcategoryId ? String(initialData.subcategoryId) : ''),
         category: initialData.category || ''
       });
       
@@ -80,13 +84,12 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
     setError('');
     
     // Validation
-    if (!formData.name.trim() || !formData.quantity || !formData.price) {
-      setError('Name, quantity, and price are required fields');
+    if (!formData.name.trim() || !formData.quantity || !formData.sellingPrice) {
+      setError('Name, quantity, and selling price are required fields');
       return;
     }
-
-    if (parseFloat(formData.price) < 0 || parseInt(formData.quantity) < 0) {
-      setError('Price and quantity must be positive numbers');
+    if (parseFloat(formData.sellingPrice) < 0 || parseInt(formData.quantity) < 0 || (formData.costPrice !== '' && parseFloat(formData.costPrice) < 0)) {
+      setError('Prices and quantity must be positive numbers');
       return;
     }
 
@@ -104,8 +107,16 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
       formDataToSend.append('name', formData.name.trim());
       formDataToSend.append('description', formData.description.trim());
       formDataToSend.append('quantity', parseInt(formData.quantity));
-      formDataToSend.append('price', parseFloat(formData.price));
+      // Append selling price (keeps existing backend `price` field)
+      formDataToSend.append('price', parseFloat(formData.sellingPrice));
+      // Append cost price (backend may ignore if not supported yet)
+      if (formData.costPrice !== '') {
+        formDataToSend.append('cost_price', parseFloat(formData.costPrice));
+      }
       formDataToSend.append('category', formData.category.trim() || '');
+      if (formData.subcategoryId) {
+        formDataToSend.append('subcategory_id', parseInt(formData.subcategoryId));
+      }
       
       // Add image if selected
       if (selectedImage) {
@@ -131,7 +142,8 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
           name: '',
           description: '',
           quantity: '',
-          price: '',
+          costPrice: '',
+          sellingPrice: '',
           category: ''
         });
       }
@@ -183,7 +195,7 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div>
           <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
             Quantity *
@@ -202,14 +214,31 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
         </div>
 
         <div>
-          <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
-            Price *
+          <label htmlFor="costPrice" className="block text-sm font-medium text-gray-700 mb-1">
+            Cost Price
           </label>
           <input
             type="number"
-            id="price"
-            name="price"
-            value={formData.price}
+            id="costPrice"
+            name="costPrice"
+            value={formData.costPrice}
+            onChange={handleChange}
+            min="0"
+            step="0.01"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="sellingPrice" className="block text-sm font-medium text-gray-700 mb-1">
+            Selling Price *
+          </label>
+          <input
+            type="number"
+            id="sellingPrice"
+            name="sellingPrice"
+            value={formData.sellingPrice}
             onChange={handleChange}
             min="0"
             step="0.01"
@@ -273,6 +302,29 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
           ))}
         </select>
       </div>
+
+      {/* Subcategory select (shows only when a category is selected) */}
+      {formData.category && (
+        <div>
+          <label htmlFor="subcategory" className="block text-sm font-medium text-gray-700 mb-1">
+            Subcategory
+          </label>
+          <select
+            id="subcategory"
+            name="subcategoryId"
+            value={formData.subcategoryId}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">Select a subcategory (optional)</option>
+            {subcategories
+              .filter(sc => String(sc.category_id) === String(categories.find(c => c.name === formData.category)?.id))
+              .map((sc) => (
+                <option key={sc.id} value={sc.id}>{sc.name}</option>
+              ))}
+          </select>
+        </div>
+      )}
 
       <div className="flex justify-end space-x-3 pt-4">
         <button

@@ -115,6 +115,7 @@ const SideBar = () => {
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon, path: '/dashboard' },
     { id: 'billing', label: 'Billing', icon: BillingIcon, path: '/dashboard/billing' },
     { id: 'inventory', label: 'Inventory', icon: InventoryIcon, path: '/dashboard/inventory' },
+    { id: 'purchases', label: 'Purchases', icon: BillingIcon, path: '/dashboard/purchases' },
     { id: 'delivery', label: 'Delivery', icon: DeliveryIcon, path: '/dashboard/delivery' },
     { id: 'transactions', label: 'Transactions', icon: TransactionsIcon, path: '/dashboard/transactions' },
     { id: 'notifications', label: 'Notifications', icon: NotificationIcon, path: '/dashboard/notifications' },

@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS items (
     description TEXT,
     quantity INT NOT NULL DEFAULT 0,
     price DECIMAL(10, 2) NOT NULL,
+    cost_price DECIMAL(10, 2) DEFAULT NULL,
     category VARCHAR(100),
     image VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -32,6 +33,46 @@ CREATE TABLE IF NOT EXISTS purchases (
     payment_method VARCHAR(50) DEFAULT 'Cash',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Create suppliers table
+CREATE TABLE IF NOT EXISTS suppliers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    contact_person VARCHAR(255),
+    phone VARCHAR(50),
+    email VARCHAR(255),
+    address TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Extend purchases table for supplier invoices (add columns if missing)
+SET @col_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'purchases'
+        AND COLUMN_NAME = 'supplier_id'
+);
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE purchases ADD COLUMN supplier_id INT DEFAULT NULL, ADD COLUMN invoice_date DATE DEFAULT NULL, ADD COLUMN due_date DATE DEFAULT NULL, ADD COLUMN payment_status VARCHAR(20) DEFAULT "pending", ADD COLUMN purchase_type VARCHAR(20) DEFAULT "sale"',
+    'SELECT "cols_exist"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add FK from purchases.supplier_id to suppliers.id if not exists
+SET @fk_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.TABLE_CONSTRAINTS
+    WHERE CONSTRAINT_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'purchases'
+        AND CONSTRAINT_NAME = 'fk_purchases_supplier'
+        AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+);
+SET @sql = IF(@fk_exists = 0,
+    'ALTER TABLE purchases ADD CONSTRAINT fk_purchases_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL',
+    'SELECT "fk_exists"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Create purchase_items table
 CREATE TABLE IF NOT EXISTS purchase_items (
@@ -91,6 +132,44 @@ CREATE TABLE IF NOT EXISTS country_price_conditions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- Create subcategories table
+CREATE TABLE IF NOT EXISTS subcategories (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        category_id INT NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+);
+
+-- Add subcategory_id to items (if not exists)
+-- Add subcategory_id column if it does not exist (works across MySQL/MariaDB versions)
+SET @col_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'items'
+        AND COLUMN_NAME = 'subcategory_id'
+);
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE items ADD COLUMN subcategory_id INT DEFAULT NULL',
+    'SELECT "column_exists"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add foreign key constraint for subcategory_id if it does not exist
+SET @fk_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.TABLE_CONSTRAINTS
+    WHERE CONSTRAINT_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'items'
+        AND CONSTRAINT_NAME = 'fk_items_subcategory'
+        AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+);
+SET @sql = IF(@fk_exists = 0,
+    'ALTER TABLE items ADD CONSTRAINT fk_items_subcategory FOREIGN KEY (subcategory_id) REFERENCES subcategories(id) ON DELETE SET NULL',
+    'SELECT "fk_exists"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- create user table
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -109,3 +188,80 @@ CREATE TABLE permissions (
   can_access BOOLEAN DEFAULT false,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- Create payments table to track payments for purchases (invoices)
+CREATE TABLE IF NOT EXISTS payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    purchase_id INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    method VARCHAR(50) DEFAULT 'Cash',
+    paid_by VARCHAR(255) DEFAULT NULL,
+    note TEXT,
+    paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE
+);
+
+-- Add paid_by column to payments if it doesn't exist (for older DBs)
+SET @col_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'payments'
+        AND COLUMN_NAME = 'paid_by'
+);
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE payments ADD COLUMN paid_by VARCHAR(255) DEFAULT NULL',
+    'SELECT "paid_by_exists"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add paid_by_id column to payments if it doesn't exist (to reference users table)
+SET @col_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'payments'
+        AND COLUMN_NAME = 'paid_by_id'
+);
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE payments ADD COLUMN paid_by_id INT DEFAULT NULL',
+    'SELECT "paid_by_id_exists"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add foreign key constraint from payments.paid_by_id to users.id if not exists
+SET @fk_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.TABLE_CONSTRAINTS
+    WHERE CONSTRAINT_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'payments'
+        AND CONSTRAINT_NAME = 'fk_payments_paid_by'
+        AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+);
+SET @sql = IF(@fk_exists = 0,
+    'ALTER TABLE payments ADD CONSTRAINT fk_payments_paid_by FOREIGN KEY (paid_by_id) REFERENCES users(id) ON DELETE SET NULL',
+    'SELECT "fk_exists"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add index to quickly query due purchases (conditional checks for compatibility)
+SET @idx_due_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.statistics
+    WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'purchases'
+        AND INDEX_NAME = 'idx_purchases_due_date'
+);
+SET @sql = IF(@idx_due_exists = 0,
+    'ALTER TABLE purchases ADD INDEX idx_purchases_due_date (due_date)',
+    'SELECT "idx_due_exists"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_pay_status_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.statistics
+    WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'purchases'
+        AND INDEX_NAME = 'idx_purchases_payment_status'
+);
+SET @sql = IF(@idx_pay_status_exists = 0,
+    'ALTER TABLE purchases ADD INDEX idx_purchases_payment_status (payment_status)',
+    'SELECT "idx_pay_status_exists"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
