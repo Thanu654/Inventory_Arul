@@ -4,7 +4,7 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    quantity: '',
+        quantity: '', // Make quantity optional
     costPrice: '',
     sellingPrice: '',
     subcategoryId: '',
@@ -83,15 +83,19 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
     e.preventDefault();
     setError('');
     
-    // Validation
-    if (!formData.name.trim() || !formData.quantity || !formData.sellingPrice) {
-      setError('Name, quantity, and selling price are required fields');
-      return;
-    }
-    if (parseFloat(formData.sellingPrice) < 0 || parseInt(formData.quantity) < 0 || (formData.costPrice !== '' && parseFloat(formData.costPrice) < 0)) {
-      setError('Prices and quantity must be positive numbers');
-      return;
-    }
+        // Validation: require name and selling price; quantity is optional (defaults to 0)
+        if (!formData.name.trim() || !formData.sellingPrice) {
+          setError('Name and selling price are required fields');
+          return;
+        }
+        if (parseFloat(formData.sellingPrice) < 0 || (formData.costPrice !== '' && parseFloat(formData.costPrice) < 0)) {
+          setError('Prices must be positive numbers');
+          return;
+        }
+        if (formData.quantity !== '' && formData.quantity !== null && formData.quantity !== undefined && parseInt(formData.quantity) < 0) {
+          setError('Quantity must be a positive number');
+          return;
+        }
 
     try {
       setLoading(true);
@@ -107,6 +111,10 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
       formDataToSend.append('name', formData.name.trim());
       formDataToSend.append('description', formData.description.trim());
       formDataToSend.append('quantity', parseInt(formData.quantity));
+            // Only append quantity if user provided it; otherwise backend will default to 0
+            if (formData.quantity !== '' && formData.quantity !== null && formData.quantity !== undefined) {
+              formDataToSend.append('quantity', parseInt(formData.quantity));
+            }
       // Append selling price (keeps existing backend `price` field)
       formDataToSend.append('price', parseFloat(formData.sellingPrice));
       // Append cost price (backend may ignore if not supported yet)
@@ -196,22 +204,9 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div>
-          <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
-            Quantity *
-          </label>
-          <input
-            type="number"
-            id="quantity"
-            name="quantity"
-            value={formData.quantity}
-            onChange={handleChange}
-            min="0"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            placeholder="0"
-            required
-          />
-        </div>
+        
+         
+          
 
         <div>
           <label htmlFor="costPrice" className="block text-sm font-medium text-gray-700 mb-1">

@@ -17,6 +17,11 @@ import {
   deleteSupplier,
   createPurchase,
   createStockPurchase,
+  createSale,
+  getSales,
+  getSaleDetails,
+  updateSale,
+  deleteSale,
   getPurchases,
   getPurchaseDetails,
   addPayment,
@@ -70,6 +75,11 @@ router.delete('/suppliers/:id', deleteSupplier);
 
 // Purchases routes
 router.post("/purchases", createPurchase);
+router.post("/sales", createSale);
+router.get("/sales", getSales);
+router.get('/sales/:id', getSaleDetails);
+router.put('/sales/:id', updateSale);
+router.delete('/sales/:id', deleteSale);
 router.get("/purchases", getPurchases);
 router.get('/purchases/due', getDuePurchases);
 router.get("/purchases/:id", getPurchaseDetails);

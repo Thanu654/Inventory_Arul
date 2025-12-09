@@ -15,6 +15,7 @@ import Delivery from './components/Delivery/Delivery';
 import Login from './components/Login';
 import AddStaff from './components/Staff/AddStaff';
 import ViewStaff from './components/Staff/viewStaff';
+import Reports from './components/Reports/Reports';
 import { ProtectedRoute, AdminRoute} from './components/ProtectedRoute';
 import { PermissionRoute } from './components/PermissionRoute';
 function App() {
@@ -97,6 +98,15 @@ function App() {
             element={
               <PermissionRoute page="notifications">
                 <Notifications />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="reports"
+            element={
+              <PermissionRoute page="reports">
+                <Reports />
               </PermissionRoute>
             }
           />

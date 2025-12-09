@@ -5,12 +5,14 @@ const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filterType, setFilterType] = useState('all'); // 'all' | 'sale' | 'supplier'
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewingTransaction, setViewingTransaction] = useState(null);
   const [purchaseItems, setPurchaseItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [transactionDetails, setTransactionDetails] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, transaction: null });
   const [currentPage, setCurrentPage] = useState(1);
   const transactionsPerPage = 10;
@@ -24,17 +26,80 @@ const Transactions = () => {
     fetchTransactions();
   }, []);
 
+  useEffect(() => {
+    // refetch when user switches tab/filter
+    fetchTransactions();
+  }, [filterType]);
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/purchases`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch transactions');
+
+      if (filterType === 'sale') {
+        // fetch sales (invoices)
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/sales`);
+        if (!res.ok) throw new Error('Failed to fetch sales');
+        const rows = await res.json();
+        // Normalize shape
+        const mapped = rows.map(r => ({
+          id: r.id,
+          bill_number: r.invoice_number || r.bill_number || null,
+          customer_name: r.customer_name || r.customer || 'Walk-in Customer',
+          total_amount: r.total_amount,
+          created_at: r.created_at,
+          source: 'sale',
+          raw: r
+        }));
+        setTransactions(mapped);
+        return;
       }
-      
-      const data = await response.json();
-      setTransactions(data);
+
+      if (filterType === 'supplier') {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/purchases?type=supplier`);
+        if (!res.ok) throw new Error('Failed to fetch supplier purchases');
+        const rows = await res.json();
+        const mapped = rows.map(r => ({
+          id: r.id,
+          bill_number: r.bill_number || null,
+          customer_name: r.customer_name || r.supplier_name || 'Supplier',
+          total_amount: r.total_amount,
+          created_at: r.created_at,
+          source: 'purchase',
+          raw: r
+        }));
+        setTransactions(mapped);
+        return;
+      }
+
+      // all: fetch both and merge
+      const [resSales, resPurchases] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/sales`),
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/purchases?type=supplier`)
+      ]);
+      if (!resSales.ok || !resPurchases.ok) throw new Error('Failed to fetch transactions');
+      const [salesRows, purchasesRows] = await Promise.all([resSales.json(), resPurchases.json()]);
+      const salesMapped = salesRows.map(r => ({
+        id: r.id,
+        bill_number: r.invoice_number || null,
+        customer_name: r.customer_name || 'Walk-in Customer',
+        total_amount: r.total_amount,
+        created_at: r.created_at,
+        source: 'sale',
+        raw: r
+      }));
+      const purchasesMapped = purchasesRows.map(r => ({
+        id: r.id,
+        bill_number: r.bill_number || null,
+        customer_name: r.customer_name || 'Supplier',
+        total_amount: r.total_amount,
+        created_at: r.created_at,
+        source: 'purchase',
+        raw: r
+      }));
+      const merged = [...salesMapped, ...purchasesMapped];
+      // sort by created_at desc
+      merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setTransactions(merged);
     } catch (err) {
       setError(err.message);
       console.error('Error fetching transactions:', err);
@@ -43,20 +108,27 @@ const Transactions = () => {
     }
   };
 
-  const fetchPurchaseItems = async (purchaseId) => {
+  const fetchPurchaseItems = async (transaction) => {
     try {
       setLoadingItems(true);
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/purchases/${purchaseId}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch purchase items');
+      let url;
+      if (transaction.source === 'sale') {
+        url = `${import.meta.env.VITE_API_BASE_URL}/sales/${transaction.id}`;
+      } else {
+        url = `${import.meta.env.VITE_API_BASE_URL}/purchases/${transaction.id}`;
       }
-      
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch transaction items');
+      }
       const data = await response.json();
+      // API returns { sale, items } for sales or { purchase, items } for purchases
       setPurchaseItems(data.items || []);
+      setTransactionDetails(data.sale || data.purchase || null);
     } catch (err) {
-      toast.error('Error fetching purchase details: ' + err.message);
-      console.error('Error fetching purchase items:', err);
+      toast.error('Error fetching transaction details: ' + err.message);
+      console.error('Error fetching transaction items:', err);
     } finally {
       setLoadingItems(false);
     }
@@ -65,37 +137,57 @@ const Transactions = () => {
   const openViewModal = async (transaction) => {
     setViewingTransaction(transaction);
     setIsViewModalOpen(true);
-    await fetchPurchaseItems(transaction.id);
+    await fetchPurchaseItems(transaction);
   };
 
   const closeViewModal = () => {
     setIsViewModalOpen(false);
     setViewingTransaction(null);
     setPurchaseItems([]);
+    setTransactionDetails(null);
   };
 
   const openEditModal = async (transaction) => {
     setEditingTransaction(transaction);
+    // initialize basic fields
     setEditFormData({
+      bill_number: transaction.bill_number || transaction.raw?.invoice_number || '',
       customer_name: transaction.customer_name || '',
       total_amount: transaction.total_amount || '',
       items: []
     });
-    
-    // Fetch purchase items for editing
+
+    // Fetch details depending on source
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/purchases/${transaction.id}`);
+      const url = transaction.source === 'sale'
+        ? `${import.meta.env.VITE_API_BASE_URL}/sales/${transaction.id}`
+        : `${import.meta.env.VITE_API_BASE_URL}/purchases/${transaction.id}`;
+
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
+        const items = data.items || [];
+        // Normalize items for the edit UI: { item_id, name, price, quantity, total_price }
+        const norm = items.map(it => ({
+          item_id: it.item_id ?? it.itemId ?? null,
+          name: it.name || it.itemName || '',
+          price: parseFloat(it.price ?? it.item_price ?? it.itemPrice ?? 0),
+          quantity: parseInt(it.quantity) || 0,
+          total_price: parseFloat(it.total_price ?? it.totalPrice ?? it.total ?? 0)
+        }));
+
         setEditFormData(prev => ({
           ...prev,
-          items: data.items || []
+          items: norm,
+          bill_number: data.sale?.invoice_number ?? data.purchase?.bill_number ?? prev.bill_number,
+          customer_name: data.sale?.customer_name ?? data.purchase?.customer_name ?? prev.customer_name,
+          total_amount: data.sale?.total_amount ?? data.purchase?.total_amount ?? prev.total_amount
         }));
       }
     } catch (err) {
       console.error('Error fetching items for edit:', err);
     }
-    
+
     setIsEditModalOpen(true);
   };
 
@@ -158,12 +250,25 @@ const Transactions = () => {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/purchases/${editingTransaction.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Choose endpoint based on source
+      let url, body;
+      if (editingTransaction.source === 'sale') {
+        url = `${import.meta.env.VITE_API_BASE_URL}/sales/${editingTransaction.id}`;
+        body = {
+          billNumber: editFormData.bill_number || editFormData.billNumber || null,
+          customerName: editFormData.customer_name.trim(),
+          totalAmount: parseFloat(editFormData.total_amount),
+          items: editFormData.items.map(item => ({
+            itemId: item.item_id,
+            itemName: item.name,
+            itemPrice: item.price,
+            quantity: item.quantity,
+            totalPrice: item.total_price
+          }))
+        };
+      } else {
+        url = `${import.meta.env.VITE_API_BASE_URL}/purchases/${editingTransaction.id}`;
+        body = {
           customer_name: editFormData.customer_name.trim(),
           total_amount: parseFloat(editFormData.total_amount),
           items: editFormData.items.map(item => ({
@@ -173,7 +278,13 @@ const Transactions = () => {
             quantity: item.quantity,
             total_price: item.total_price
           }))
-        }),
+        };
+      }
+
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
 
       if (!response.ok) {
@@ -195,9 +306,13 @@ const Transactions = () => {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/purchases/${deleteConfirm.transaction.id}`, {
-        method: 'DELETE'
-      });
+      // Determine endpoint by source (sale or purchase)
+      const id = deleteConfirm.transaction.id;
+      const endpoint = deleteConfirm.transaction.source === 'sale'
+        ? `${import.meta.env.VITE_API_BASE_URL}/sales/${id}`
+        : `${import.meta.env.VITE_API_BASE_URL}/purchases/${id}`;
+
+      const response = await fetch(endpoint, { method: 'DELETE' });
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -247,7 +362,16 @@ const Transactions = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Transactions</h1>
-        <p className="text-gray-600">View and manage all purchase transactions</p>
+        <p className="text-gray-600">View and manage all purchase & sales transactions</p>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="mb-6">
+        <div className="inline-flex rounded-md shadow-sm" role="group">
+          <button onClick={() => setFilterType('all')} className={`px-4 py-2 border ${filterType==='all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}>All</button>
+          <button onClick={() => setFilterType('sale')} className={`px-4 py-2 border ${filterType==='sale' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}>Invoices (Sales)</button>
+          <button onClick={() => setFilterType('supplier')} className={`px-4 py-2 border ${filterType==='supplier' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}>Supplier Purchases</button>
+        </div>
       </div>
 
       {transactions.length === 0 ? (
@@ -274,18 +398,36 @@ const Transactions = () => {
                       Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {(() => {
-                    const totalPages = Math.ceil(transactions.length / transactionsPerPage);
-                    const currentTransactions = transactions.slice(
+                    // Apply client-side filter by purchase_type (backend returns p.purchase_type)
+                    const filtered = transactions.filter(t => {
+                      if (filterType === 'all') return true;
+                      if (filterType === 'supplier') return (t.source === 'purchase');
+                      if (filterType === 'sale') return (t.source === 'sale');
+                      return true;
+                    });
+                    const totalPages = Math.ceil(filtered.length / transactionsPerPage);
+                    const currentTransactions = filtered.slice(
                       (currentPage - 1) * transactionsPerPage,
                       currentPage * transactionsPerPage
                     );
-                    
+
+                    if (filtered.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-8 text-center text-gray-500">No transactions for selected filter.</td>
+                        </tr>
+                      );
+                    }
+
                     return currentTransactions.map((transaction) => (
                       <tr key={transaction.id} className="hover:bg-gray-50 transition-colors duration-200">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -302,6 +444,9 @@ const Transactions = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {formatDate(transaction.created_at)}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100">{transaction.source === 'purchase' ? 'Supplier' : 'Sale'}</span>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                           <button
                             onClick={() => openViewModal(transaction)}
@@ -313,24 +458,28 @@ const Transactions = () => {
                             </svg>
                             View
                           </button>
-                          <button
-                            onClick={() => openEditModal(transaction)}
-                            className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-md transition duration-200 inline-flex items-center"
-                          >
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => confirmDelete(transaction)}
-                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md transition duration-200 inline-flex items-center"
-                          >
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Delete
-                          </button>
+
+                          {/* Allow edit/delete for both purchases and sales */}
+                          <>
+                            <button
+                              onClick={() => openEditModal(transaction)}
+                              className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-md transition duration-200 inline-flex items-center"
+                            >
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => confirmDelete(transaction)}
+                              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md transition duration-200 inline-flex items-center"
+                            >
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete
+                            </button>
+                          </>
                         </td>
                       </tr>
                     ));
@@ -342,12 +491,24 @@ const Transactions = () => {
             {/* Page Total */}
             <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
               <div className="flex justify-between items-center">
-                <div className="text-sm text-gray-600">
-                  Page {currentPage} of {Math.ceil(transactions.length / transactionsPerPage)}
+                  <div className="text-sm text-gray-600">
+                  Page {currentPage} of {Math.ceil(transactions.filter(t => {
+                    if (filterType === 'all') return true;
+                    if (filterType === 'supplier') return (t.source === 'purchase');
+                    if (filterType === 'sale') return (t.source === 'sale');
+                    return true;
+                  }).length / transactionsPerPage)}
                 </div>
                 <div className="text-lg font-semibold text-green-600">
                   Page Total: ${(() => {
-                    const currentTransactions = transactions.slice(
+                    // compute totals for current filtered page
+                    const filtered = transactions.filter(t => {
+                      if (filterType === 'all') return true;
+                      if (filterType === 'supplier') return (t.purchase_type === 'supplier');
+                      if (filterType === 'sale') return (t.purchase_type !== 'supplier');
+                      return true;
+                    });
+                    const currentTransactions = filtered.slice(
                       (currentPage - 1) * transactionsPerPage,
                       currentPage * transactionsPerPage
                     );
@@ -363,7 +524,13 @@ const Transactions = () => {
           
           {/* Pagination Controls */}
           {(() => {
-            const totalPages = Math.ceil(transactions.length / transactionsPerPage);
+            const filtered = transactions.filter(t => {
+              if (filterType === 'all') return true;
+              if (filterType === 'supplier') return (t.source === 'purchase');
+              if (filterType === 'sale') return (t.source === 'sale');
+              return true;
+            });
+            const totalPages = Math.ceil(filtered.length / transactionsPerPage);
             
             if (totalPages <= 1) return null;
             
@@ -402,10 +569,10 @@ const Transactions = () => {
                       </span>{' '}
                       to{' '}
                       <span className="font-medium">
-                        {Math.min(currentPage * transactionsPerPage, transactions.length)}
+                        {Math.min(currentPage * transactionsPerPage, filtered.length)}
                       </span>{' '}
                       of{' '}
-                      <span className="font-medium">{transactions.length}</span> transactions
+                      <span className="font-medium">{filtered.length}</span> transactions
                     </p>
                   </div>
                   <div>
@@ -481,16 +648,38 @@ const Transactions = () => {
               {/* Transaction Info */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Customer Name</h3>
-                  <p className="text-lg font-semibold text-gray-900">{viewingTransaction?.customer_name || 'N/A'}</p>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Invoice / Bill #</h3>
+                  <p className="text-lg font-semibold text-gray-900">{transactionDetails?.invoice_number || transactionDetails?.bill_number || viewingTransaction?.bill_number || `#${viewingTransaction?.id}`}</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Total Amount</h3>
-                  <p className="text-lg font-semibold text-green-600">${parseFloat(viewingTransaction?.total_amount || 0).toFixed(2)}</p>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Customer</h3>
+                  <p className="text-lg font-semibold text-gray-900">{transactionDetails?.customer_name || viewingTransaction?.customer_name || 'N/A'}</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Date & Time</h3>
-                  <p className="text-lg font-semibold text-gray-900">{formatDate(viewingTransaction?.created_at)}</p>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Created By</h3>
+                  <p className="text-lg font-semibold text-gray-900">{transactionDetails?.created_by || viewingTransaction?.raw?.created_by || 'N/A'}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Subtotal</h3>
+                  <p className="text-lg font-semibold text-gray-900">${(() => {
+                    const sum = purchaseItems.reduce((s, it) => {
+                      const rawVal = (it.total_price ?? it.totalPrice ?? it.total) || 0;
+                      const v = parseFloat(rawVal);
+                      return s + (isNaN(v) ? 0 : v);
+                    }, 0);
+                    return sum.toFixed(2);
+                  })()}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Discount</h3>
+                  <p className="text-lg font-semibold text-red-600">${parseFloat(transactionDetails?.offer_amount ?? transactionDetails?.offerAmount ?? viewingTransaction?.raw?.offer_amount ?? 0).toFixed(2)}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Total</h3>
+                  <p className="text-lg font-semibold text-green-600">${parseFloat(transactionDetails?.total_amount ?? viewingTransaction?.total_amount ?? 0).toFixed(2)}</p>
                 </div>
               </div>
 

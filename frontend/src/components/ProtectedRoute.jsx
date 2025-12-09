@@ -4,7 +4,8 @@ import { Navigate } from 'react-router-dom';
 
 export const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/login" />;
+  // Redirect to the actual login route used in App ("/") when not authenticated
+  return token ? children : <Navigate to="/" replace />;
 };
 
 export const AdminRoute = ({ children }) => {

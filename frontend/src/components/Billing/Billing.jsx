@@ -6,6 +6,11 @@ const Billing = () => {
   const [error, setError] = useState(null);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [customerName, setCustomerName] = useState('');
+  const [offerType, setOfferType] = useState('none'); // 'none' | 'percent' | 'lkr'
+  const [offerValue, setOfferValue] = useState('');
+  const [paidBy, setPaidBy] = useState(localStorage.getItem('name') || '');
+  const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now()}`);
+  const [billType, setBillType] = useState('invoice'); // always 'invoice' for this UI
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [mainSearchTerm, setMainSearchTerm] = useState('');
@@ -43,6 +48,8 @@ const Billing = () => {
   };
 
   const openCartModal = () => {
+    // generate a fresh invoice number when opening cart
+    setInvoiceNumber(`INV-${Date.now()}`);
     setIsCartModalOpen(true);
   };
 
@@ -152,9 +159,189 @@ const Billing = () => {
     return selectedProducts.reduce((total, product) => total + calculateProductTotal(product), 0);
   };
 
+  const calculateDiscount = (subtotal) => {
+    const val = parseFloat(offerValue) || 0;
+    if (offerType === 'percent') return (subtotal * Math.min(Math.max(val, 0), 100)) / 100;
+    if (offerType === 'lkr') return Math.min(Math.max(val, 0), subtotal);
+    return 0;
+  };
+
+  const calculateFinalTotal = () => {
+    const subtotal = calculateOverallTotal();
+    const discount = calculateDiscount(subtotal);
+    return Math.max(0, subtotal - discount);
+  };
+
+  const handleOfferTypeChange = (value) => {
+    const subtotal = calculateOverallTotal();
+    if (value === 'none') {
+      setOfferType('none');
+      setOfferValue('');
+      return;
+    }
+
+    // if switching to percent and current value > 100, clamp
+    if (value === 'percent') {
+      const v = parseFloat(offerValue) || 0;
+      if (v > 100) {
+        setOfferValue('100');
+        showToast('Percentage cannot exceed 100%. It was set to 100.', 'warning');
+      }
+    }
+
+    // if switching to lkr and current value > subtotal, clamp
+    if (value === 'lkr') {
+      const v = parseFloat(offerValue) || 0;
+      if (v > subtotal) {
+        setOfferValue(String(subtotal.toFixed(2)));
+        showToast('Fixed discount cannot exceed subtotal. It was adjusted.', 'warning');
+      }
+    }
+
+    setOfferType(value);
+  };
+
+  const handleOfferValueChange = (value) => {
+    // Allow user-friendly typing: accept numbers with optional decimal (max 2 places)
+    if (value === '' || value === null) {
+      setOfferValue('');
+      return;
+    }
+
+    // Only allow digits and optional single dot with up to 2 decimals
+    const re = /^\d*(?:\.\d{0,2})?$/;
+    if (!re.test(value)) {
+      // ignore invalid keystrokes
+      return;
+    }
+
+    // Keep raw string while typing to avoid interfering with user edits
+    setOfferValue(value);
+
+    // Basic live validation for percent (clamp to 100)
+    if (offerType === 'percent') {
+      const num = parseFloat(value);
+      if (!isNaN(num) && num > 100) {
+        setOfferValue('100');
+        showToast('Percentage cannot be more than 100%', 'warning');
+      }
+    }
+    
+    // Immediate clamp for LKR: prevent entering more than subtotal
+    if (offerType === 'lkr') {
+      const num = parseFloat(value);
+      const subtotal = calculateOverallTotal();
+      if (!isNaN(num) && num > subtotal) {
+        setOfferValue(String(subtotal.toFixed(2)));
+        showToast('Fixed discount cannot exceed subtotal', 'warning');
+      }
+    }
+  };
+
+  const normalizeOfferValueBlur = () => {
+    // Normalize & clamp value on blur and format for display
+    if (offerValue === '' || offerValue === null) return;
+    let num = parseFloat(offerValue);
+    if (isNaN(num)) {
+      setOfferValue('');
+      return;
+    }
+    const subtotal = calculateOverallTotal();
+    if (offerType === 'percent') {
+      num = Math.max(0, Math.min(100, num));
+      // show without trailing decimals if integer, otherwise up to 2 decimals
+      setOfferValue(Number.isInteger(num) ? String(num) : String(+num.toFixed(2)));
+    } else if (offerType === 'lkr') {
+      num = Math.max(0, Math.min(subtotal, num));
+      setOfferValue(String(num.toFixed(2)));
+    } else {
+      setOfferValue(String(num));
+    }
+  };
+
+  // Ensure fixed LKR offerValue never exceeds subtotal when items/quantities change
+  useEffect(() => {
+    if (offerType === 'lkr') {
+      const subtotal = calculateOverallTotal();
+      const v = parseFloat(offerValue) || 0;
+      if (v > subtotal) {
+        // Adjust to new subtotal but keep formatting friendly (two decimals)
+        setOfferValue(String(subtotal.toFixed(2)));
+        showToast('Fixed discount adjusted to current subtotal', 'warning');
+      }
+    }
+  }, [selectedProducts]);
+
+  
+
+  // Picker states for selecting existing products inside modal
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [pickedItemId, setPickedItemId] = useState('');
+  const [pickedQty, setPickedQty] = useState(1);
+  const [pickedPrice, setPickedPrice] = useState('');
+
+  const handlePickerSearch = (e) => {
+    setPickerSearch(e.target.value);
+  };
+
+  const handlePickChange = (e) => {
+    const id = e.target.value;
+    setPickedItemId(id);
+    const it = items.find(i => String(i.id) === String(id));
+    if (it) {
+      setPickedPrice(parseFloat(it.price).toFixed(2));
+      setPickedQty(1);
+    } else {
+      setPickedPrice('');
+      setPickedQty(1);
+    }
+  };
+
+  const addPickedProductToBill = () => {
+    if (!pickedItemId) {
+      showToast('Please select a product to add', 'error');
+      return;
+    }
+    const it = items.find(i => String(i.id) === String(pickedItemId));
+    if (!it) {
+      showToast('Selected product not found', 'error');
+      return;
+    }
+    const qty = parseInt(pickedQty) || 1;
+    if (qty <= 0) {
+      showToast('Quantity must be at least 1', 'error');
+      return;
+    }
+
+    const existing = selectedProducts.find(p => p.id === it.id);
+    if (existing) {
+      const newQty = existing.selectedQuantity + qty;
+      // Only enforce available stock on customer invoices (sales)
+      if (billType === 'invoice' && newQty > (it.quantity || 0)) {
+        showToast(`Only ${it.quantity} units available for ${it.name}`, 'warning');
+        return;
+      }
+      setSelectedProducts(prev => prev.map(p => p.id === existing.id ? { ...p, selectedQuantity: newQty } : p));
+      showToast(`Updated quantity for ${it.name}`, 'success');
+    } else {
+      // If supplier purchase, we can allow adding any positive quantity (stock will increase)
+      setSelectedProducts(prev => [...prev, { id: it.id, name: it.name, price: parseFloat(it.price), maxQuantity: it.quantity, selectedQuantity: qty, category: it.category }]);
+      showToast(`${it.name} added to bill`, 'success');
+    }
+
+    // Clear picker fields
+    setPickedItemId('');
+    setPickedPrice('');
+    setPickedQty(1);
+    setPickerSearch('');
+  };
+
+  
+
   const clearBill = () => {
     setSelectedProducts([]);
     setCustomerName('');
+    setInvoiceNumber(`INV-${Date.now()}`);
     showToast('Bill cleared', 'success');
   };
 
@@ -162,8 +349,10 @@ const Billing = () => {
     try {
       const billDate = new Date().toLocaleDateString();
       const billTime = new Date().toLocaleTimeString();
-      const billNumber = `INV-${Date.now()}`;
-      const totalAmount = calculateOverallTotal();
+      const billNumber = invoiceNumber || `INV-${Date.now()}`;
+      const subtotal = calculateOverallTotal();
+      const discount = calculateDiscount(subtotal);
+      const totalAmount = Math.max(0, subtotal - discount);
 
       // Prepare purchase data
       const purchaseData = {
@@ -171,8 +360,15 @@ const Billing = () => {
         customerName: customerName.trim() || 'Walk-in Customer',
         totalAmount,
         paymentMethod: 'Cash',
+        // send offer fields at top level so backend stores them with the purchase record
+        offerType: offerType === 'none' ? null : offerType,
+        offerValue: offerValue ? parseFloat(offerValue) : 0,
+        offerAmount: discount,
+        createdBy: paidBy || null,
+        createdById: null,
+        billType: 'invoice',
         items: selectedProducts.map(product => ({
-          itemId: product.id,
+          itemId: product.isCustom ? null : product.id,
           itemName: product.name,
           itemPrice: product.price,
           quantity: product.selectedQuantity,
@@ -181,7 +377,9 @@ const Billing = () => {
       };
 
       // Save to backend
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/purchases`, {
+      // Create a sale (customer invoice)
+      const endpoint = '/sales';
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -194,12 +392,12 @@ const Billing = () => {
         throw new Error(errorData.message || 'Failed to save purchase');
       }
 
-      // Update local items state to reflect reduced quantities
+      // Update local items state: decrease for invoice, increase for supplier purchase
       setItems(prevItems => 
         prevItems.map(item => {
-          const soldProduct = selectedProducts.find(p => p.id === item.id);
-          if (soldProduct) {
-            return { ...item, quantity: item.quantity - soldProduct.selectedQuantity };
+          const changed = selectedProducts.find(p => p.id === item.id);
+          if (changed) {
+            return { ...item, quantity: billType === 'supplier' ? item.quantity + changed.selectedQuantity : item.quantity - changed.selectedQuantity };
           }
           return item;
         })
@@ -320,8 +518,10 @@ const Billing = () => {
           <div>Receipt #: ${billNumber}</div>
           <div>Date: ${billDate}</div>
           <div>Time: ${billTime}</div>
-          <div>Customer: ${customerName.trim() || 'Walk-in Customer'}</div>
+          <div>Customer: ${customerName.trim() || (billType === 'supplier' ? 'Supplier' : 'Walk-in Customer')}</div>
           <div>Payment: Cash</div>
+          ${paidBy ? `<div>Created By: ${paidBy}</div>` : ''}
+          ${discount && discount > 0 ? `<div>Discount: $${discount.toFixed(2)}</div>` : ''}
         </div>
         
         <div class="separator">...................................</div>
@@ -422,7 +622,7 @@ const Billing = () => {
           )}
         </div>
         
-        {/* Shopping Cart Button */}
+        {/* Invoice Button */}
         <div className="ml-4">
         <button
           onClick={openCartModal}
@@ -431,8 +631,20 @@ const Billing = () => {
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.1 5H17M9 19.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM20.5 19.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
           </svg>
-          <span>Shopping Cart ({selectedProducts.length})</span>
+          <span>Invoice ({selectedProducts.length})</span>
         </button>
+        </div>
+        {/* Add Bill Button (opens same modal for creating invoice/purchase) */}
+        <div className="ml-2">
+          <button
+            onClick={openCartModal}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center space-x-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v8m4-4H8" />
+            </svg>
+            <span>Add Bill</span>
+          </button>
         </div>
       </div>
 
@@ -538,12 +750,12 @@ const Billing = () => {
 
 
 
-      {/* Shopping Cart Modal */}
+      {/* Invoice Modal */}
       {isCartModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-screen overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-semibold text-gray-800">Shopping Cart</h2>
+              <h2 className="text-xl font-semibold text-gray-800">Invoice</h2>
               <button
                 onClick={closeCartModal}
                 className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
@@ -563,6 +775,29 @@ const Billing = () => {
                   placeholder="Enter customer name (optional - defaults to Walk-in Customer)"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Bill Type</label>
+                    <input type="text" value="Invoice (Customer)" readOnly className="w-full px-3 py-2 border rounded bg-gray-50" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Payment Method</label>
+                    <input type="text" value="Cash" disabled className="w-full px-3 py-2 border rounded bg-gray-50" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Created By</label>
+                    <input type="text" value={paidBy} readOnly className="w-full px-3 py-2 border rounded bg-gray-50" />
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <label className="block text-sm text-gray-600 mb-1">Invoice #</label>
+                  <input type="text" readOnly value={invoiceNumber} className="w-full px-3 py-2 border rounded bg-gray-50" />
+                </div>
+
+                {/* Offer controls moved below bill items — shown only when needed. */}
               </div>
 
               {/* Bill Items */}
@@ -578,6 +813,33 @@ const Billing = () => {
                     </button>
                   )}
                 </div>
+
+                {/* Product picker (search & select existing products) */}
+                <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm text-gray-600 mb-1">Search product</label>
+                    <input value={pickerSearch} onChange={handlePickerSearch} placeholder="Type to filter products" className="w-full px-3 py-2 border rounded" />
+                    <select value={pickedItemId} onChange={handlePickChange} className="w-full mt-2 px-3 py-2 border rounded">
+                      <option value="">-- Select product --</option>
+                      {items.filter(i => i.name.toLowerCase().includes(pickerSearch.toLowerCase())).map(i => (
+                        <option key={i.id} value={i.id}>{i.name} — ${parseFloat(i.price).toFixed(2)} — Avl: {i.quantity}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Price</label>
+                    <input value={pickedPrice} readOnly className="w-full px-3 py-2 border rounded bg-gray-50" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Quantity</label>
+                    <input type="number" value={pickedQty} onChange={(e) => setPickedQty(e.target.value)} className="w-full px-3 py-2 border rounded" />
+                  </div>
+                  <div className="flex items-end">
+                    <button onClick={addPickedProductToBill} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded">Add Product</button>
+                  </div>
+                </div>
+
+                
 
                 {selectedProducts.length === 0 ? (
                   <div className="text-center py-8 bg-gray-50 rounded-lg">
@@ -638,13 +900,48 @@ const Billing = () => {
                 )}
               </div>
 
+                {/* Offer controls — appears after Bill Items */}
+                <div className="mb-6">
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Offer Type</label>
+                      <select value={offerType} onChange={(e) => handleOfferTypeChange(e.target.value)} className="w-full px-3 py-2 border rounded">
+                        <option value="none">None</option>
+                        <option value="percent">Percentage (%)</option>
+                        <option value="lkr">LKR (Fixed)</option>
+                      </select>
+                    </div>
+
+                    {offerType !== 'none' && (
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Offer Value</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={offerValue}
+                          onChange={(e) => handleOfferValueChange(e.target.value)}
+                          onBlur={normalizeOfferValueBlur}
+                          placeholder={offerType === 'percent' ? 'Enter % (max 100)' : 'Enter LKR amount'}
+                          className="w-full px-3 py-2 border rounded"
+                        />
+                      </div>
+                    )}
+
+                    <div className="text-sm text-gray-500">
+                      <div>Tip: use % to apply percentage discount, or LKR for fixed amount.</div>
+                    </div>
+                  </div>
+                </div>
+
               {/* Bill Summary and Actions */}
               {selectedProducts.length > 0 && (
                 <div className="border-t pt-6">
                   <div className="flex justify-between items-center mb-6">
-                    <div className="text-xl font-bold text-gray-800">
-                      Total: ${calculateOverallTotal().toFixed(2)}
-                    </div>
+                      <div>
+                        <div className="text-sm text-gray-600">Subtotal: ${calculateOverallTotal().toFixed(2)}</div>
+                        <div className="text-sm text-gray-600">Discount: ${calculateDiscount(calculateOverallTotal()).toFixed(2)}</div>
+                        <div className="text-xl font-bold text-gray-800">Total: ${calculateFinalTotal().toFixed(2)}</div>
+                      </div>
                     <button
                       onClick={printBill}
                       className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-300 ease-in-out transform hover:scale-105"

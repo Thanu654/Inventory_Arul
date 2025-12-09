@@ -18,7 +18,7 @@ const SideBar = () => {
     if (path.includes('notifications')) return 'notifications';
     if (path.includes('delivery')) return 'delivery';
     if (path.includes('offers')) return 'offers';
-    if (path.includes('report')) return 'report';
+    if (path.includes('reports')) return 'reports';
     if (path.includes('add-staff')) return 'add-staff';
     if (path.includes('staff')) return 'view-staff';
     return 'dashboard';
@@ -120,7 +120,7 @@ const SideBar = () => {
     { id: 'transactions', label: 'Transactions', icon: TransactionsIcon, path: '/dashboard/transactions' },
     { id: 'notifications', label: 'Notifications', icon: NotificationIcon, path: '/dashboard/notifications' },
     { id: 'offers', label: 'Offers', icon: OffersIcon, path: '/dashboard/offers' },
-    { id: 'report', label: 'Report', icon: ReportIcon, path: '/dashboard/report' },
+    { id: 'reports', label: 'Report', icon: ReportIcon, path: '/dashboard/reports' },
   ];
 
   const adminMenus = [

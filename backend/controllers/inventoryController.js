@@ -22,19 +22,36 @@ export const addItem = async (req, res) => {
     const cost_price = req.body.cost_price ?? req.body.costPrice ?? null;
     const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
     
-    if (!name || quantity === undefined || price === undefined) {
-      return res.status(400).json({ message: "Name, quantity, and price are required" });
+    if (!name || price === undefined) {
+      return res.status(400).json({ message: "Name and price are required" });
     }
+
+    // quantity is optional from frontend; default to 0 if missing or invalid
+    let qtyNum = parseInt(quantity);
+    if (isNaN(qtyNum)) qtyNum = 0;
 
     const [result] = await db.query(
       "INSERT INTO items (name, description, quantity, price, cost_price, category, image) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [name, description || null, parseInt(quantity), parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, imagePath]
+      [name, description || null, qtyNum, parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, imagePath]
     );
-    
+
+    const insertedItem = { id: result.insertId, name, description, quantity: parseInt(quantity), price: parseFloat(price), cost_price: cost_price !== null ? parseFloat(cost_price) : null, category, image: imagePath };
+
+    // If initial quantity provided (positive), record an opening inventory transaction for audit/history
+    try {
+      if (qtyNum > 0) {
+        const q = "INSERT INTO inventory_transactions (item_id, item_name, quantity, type, reference, note, created_by) VALUES (?, ?, ?, 'opening', ?, ?, ?)";
+        await db.query(q, [insertedItem.id, insertedItem.name, qtyNum, 'Initial stock on item creation', 'Initial stock on item creation', req.body.created_by || null]);
+      }
+    } catch (txErr) {
+      console.error('Failed to insert opening inventory transaction:', txErr.message);
+      // continue — item creation succeeded; we prefer not to fail the whole request for audit insert failure
+    }
+
     res.status(201).json({ 
       message: "Item added successfully", 
       id: result.insertId,
-      item: { id: result.insertId, name, description, quantity: parseInt(quantity), price: parseFloat(price), cost_price: cost_price !== null ? parseFloat(cost_price) : null, category, image: imagePath }
+      item: insertedItem
     });
   } catch (error) {
     console.error("Error adding item:", error);
@@ -53,8 +70,8 @@ export const updateItem = async (req, res) => {
       return res.status(400).json({ message: "Name, quantity, and price are required" });
     }
 
-    // Get current item to check for existing image
-    const [currentItem] = await db.query("SELECT image FROM items WHERE id = ?", [parseInt(id)]);
+    // Get current item to check for existing image and current quantity
+    const [currentItem] = await db.query("SELECT image, quantity FROM items WHERE id = ?", [parseInt(id)]);
     
     if (currentItem.length === 0) {
       return res.status(404).json({ message: "Item not found" });
@@ -81,6 +98,20 @@ export const updateItem = async (req, res) => {
       return res.status(404).json({ message: "Item not found" });
     }
     
+    // If quantity changed, insert an inventory_transactions adjustment record
+    try {
+      const oldQty = currentItem[0].quantity != null ? parseInt(currentItem[0].quantity) : 0;
+      const newQty = parseInt(quantity);
+      const delta = newQty - oldQty;
+      if (delta !== 0) {
+        const adjNote = `Adjusted via item update (old:${oldQty}, new:${newQty})`;
+        const q = "INSERT INTO inventory_transactions (item_id, item_name, quantity, type, reference, note, created_by) VALUES (?, ?, ?, 'adjustment', ?, ?, ?)";
+        await db.query(q, [parseInt(id), name, delta, 'updateItem', adjNote, req.body.created_by || null]);
+      }
+    } catch (txErr) {
+      console.error('Failed to insert adjustment inventory transaction:', txErr.message);
+    }
+
     res.json({ 
       message: "Item updated successfully", 
       item: { 
@@ -324,38 +355,79 @@ export const createPurchase = async (req, res) => {
 
     await connection.beginTransaction();
 
-    // Create purchase record
-    const [purchaseResult] = await connection.query(
-      "INSERT INTO purchases (bill_number, customer_name, total_amount, payment_method) VALUES (?, ?, ?, ?)",
-      [billNumber, customerName || 'Walk-in Customer', totalAmount, paymentMethod || 'Cash']
-    );
+    // Create purchase record (accept optional offer fields and creator)
+    const offerType = req.body.offerType || req.body.offer_type || null;
+    const offerValue = req.body.offerValue !== undefined ? parseFloat(req.body.offerValue) : (req.body.offer_value !== undefined ? parseFloat(req.body.offer_value) : null);
+    const offerAmount = req.body.offerAmount !== undefined ? parseFloat(req.body.offerAmount) : (req.body.offer_amount !== undefined ? parseFloat(req.body.offer_amount) : 0);
+    const createdBy = req.body.createdBy || req.body.created_by || null;
+    const createdById = req.body.createdById || req.body.created_by_id || null;
+
+    let purchaseResult;
+    try {
+      [purchaseResult] = await connection.query(
+        "INSERT INTO purchases (bill_number, customer_name, total_amount, payment_method, offer_type, offer_value, offer_amount, created_by, created_by_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [billNumber, customerName || 'Walk-in Customer', totalAmount, paymentMethod || 'Cash', offerType, offerValue, offerAmount, createdBy, createdById]
+      );
+    } catch (err) {
+      // If DB doesn't have created_by columns (migration not applied), retry without them
+      if (err && (err.code === 'ER_BAD_FIELD_ERROR' || (err.message && err.message.includes('created_by')))) {
+        console.warn('created_by column missing, retrying purchase insert without creator fields');
+        try {
+          [purchaseResult] = await connection.query(
+            "INSERT INTO purchases (bill_number, customer_name, total_amount, payment_method, offer_type, offer_value, offer_amount) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [billNumber, customerName || 'Walk-in Customer', totalAmount, paymentMethod || 'Cash', offerType, offerValue, offerAmount]
+          );
+        } catch (err2) {
+          // If DB also doesn't have offer_* columns, fall back to minimal insert
+          if (err2 && err2.code === 'ER_BAD_FIELD_ERROR') {
+            console.warn('offer_* columns missing, retrying purchase insert with minimal columns');
+            [purchaseResult] = await connection.query(
+              "INSERT INTO purchases (bill_number, customer_name, total_amount, payment_method) VALUES (?, ?, ?, ?)",
+              [billNumber, customerName || 'Walk-in Customer', totalAmount, paymentMethod || 'Cash']
+            );
+          } else {
+            throw err2;
+          }
+        }
+      } else {
+        throw err;
+      }
+    }
     
     const purchaseId = purchaseResult.insertId;
 
     // Process each item
     for (const item of items) {
-      // Check if item has sufficient stock
-      const [stockCheck] = await connection.query("SELECT quantity FROM items WHERE id = ?", [item.itemId]);
-      
-      if (stockCheck.length === 0) {
-        throw new Error(`Item with ID ${item.itemId} not found`);
-      }
-      
-      if (stockCheck[0].quantity < item.quantity) {
-        throw new Error(`Insufficient stock for item ID ${item.itemId}. Available: ${stockCheck[0].quantity}, Requested: ${item.quantity}`);
-      }
+      // Support custom items (no itemId) by allowing item_id = NULL in purchase_items.
+      const itemId = item.itemId !== undefined && item.itemId !== null && item.itemId !== '' ? item.itemId : null;
 
-      // Insert purchase item
-      await connection.query(
-        "INSERT INTO purchase_items (purchase_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, ?, ?, ?, ?, ?)",
-        [purchaseId, item.itemId, item.itemName, item.itemPrice, item.quantity, item.totalPrice]
-      );
+      if (itemId !== null) {
+        // Check if item has sufficient stock
+        const [stockCheck] = await connection.query("SELECT quantity FROM items WHERE id = ?", [itemId]);
+        if (stockCheck.length === 0) {
+          throw new Error(`Item with ID ${itemId} not found`);
+        }
+        if (stockCheck[0].quantity < item.quantity) {
+          throw new Error(`Insufficient stock for item ID ${itemId}. Available: ${stockCheck[0].quantity}, Requested: ${item.quantity}`);
+        }
 
-      // Update item quantity
-      await connection.query(
-        "UPDATE items SET quantity = quantity - ? WHERE id = ?",
-        [item.quantity, item.itemId]
-      );
+        // Insert purchase item and update quantity
+        await connection.query(
+          "INSERT INTO purchase_items (purchase_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, ?, ?, ?, ?, ?)",
+          [purchaseId, itemId, item.itemName, item.itemPrice, item.quantity, item.totalPrice]
+        );
+
+        await connection.query(
+          "UPDATE items SET quantity = quantity - ? WHERE id = ?",
+          [item.quantity, itemId]
+        );
+      } else {
+        // Custom/service item - insert with NULL item_id and do not touch stock
+        await connection.query(
+          "INSERT INTO purchase_items (purchase_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, NULL, ?, ?, ?, ?)",
+          [purchaseId, item.itemName, item.itemPrice, item.quantity, item.totalPrice]
+        );
+      }
     }
 
     await connection.commit();
@@ -386,37 +458,80 @@ export const createStockPurchase = async (req, res) => {
 
     await connection.beginTransaction();
 
-    // Create purchase record (mark as supplier purchase)
-    const [purchaseResult] = await connection.query(
-      "INSERT INTO purchases (bill_number, customer_name, total_amount, payment_method, supplier_id, invoice_date, due_date, payment_status, purchase_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'supplier')",
-      [billNumber, customerName || 'Supplier', totalAmount, paymentMethod || 'Cash', supplierId || null, invoiceDate || null, dueDate || null, paymentStatus || 'pending']
-    );
+    // Create purchase record (mark as supplier purchase). Accept offer fields and creator if present
+    const offerType = req.body.offerType || req.body.offer_type || null;
+    const offerValue = req.body.offerValue !== undefined ? parseFloat(req.body.offerValue) : (req.body.offer_value !== undefined ? parseFloat(req.body.offer_value) : null);
+    const offerAmount = req.body.offerAmount !== undefined ? parseFloat(req.body.offerAmount) : (req.body.offer_amount !== undefined ? parseFloat(req.body.offer_amount) : 0);
+    const createdBy = req.body.createdBy || req.body.created_by || null;
+    const createdById = req.body.createdById || req.body.created_by_id || null;
+
+    let purchaseResult;
+    try {
+      [purchaseResult] = await connection.query(
+        "INSERT INTO purchases (bill_number, customer_name, total_amount, payment_method, supplier_id, invoice_date, due_date, payment_status, purchase_type, offer_type, offer_value, offer_amount, created_by, created_by_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'supplier', ?, ?, ?, ?, ?)",
+        [billNumber, customerName || 'Supplier', totalAmount, paymentMethod || 'Cash', supplierId || null, invoiceDate || null, dueDate || null, paymentStatus || 'pending', offerType, offerValue, offerAmount, createdBy, createdById]
+      );
+    } catch (err) {
+      if (err && (err.code === 'ER_BAD_FIELD_ERROR' || (err.message && err.message.includes('created_by')))) {
+        console.warn('created_by column missing, retrying supplier purchase insert without creator fields');
+        try {
+          [purchaseResult] = await connection.query(
+            "INSERT INTO purchases (bill_number, customer_name, total_amount, payment_method, supplier_id, invoice_date, due_date, payment_status, purchase_type, offer_type, offer_value, offer_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'supplier', ?, ?, ?)",
+            [billNumber, customerName || 'Supplier', totalAmount, paymentMethod || 'Cash', supplierId || null, invoiceDate || null, dueDate || null, paymentStatus || 'pending', offerType, offerValue, offerAmount]
+          );
+        } catch (err2) {
+          if (err2 && err2.code === 'ER_BAD_FIELD_ERROR') {
+            console.warn('offer_* columns missing, retrying supplier purchase insert with minimal columns');
+            [purchaseResult] = await connection.query(
+              "INSERT INTO purchases (bill_number, customer_name, total_amount, payment_method, supplier_id, invoice_date, due_date, payment_status, purchase_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'supplier')",
+              [billNumber, customerName || 'Supplier', totalAmount, paymentMethod || 'Cash', supplierId || null, invoiceDate || null, dueDate || null, paymentStatus || 'pending']
+            );
+          } else {
+            throw err2;
+          }
+        }
+      } else {
+        throw err;
+      }
+    }
 
     const purchaseId = purchaseResult.insertId;
     const updatedItems = [];
 
     for (const item of items) {
-      // Ensure item exists
-      const [stockCheck] = await connection.query("SELECT quantity FROM items WHERE id = ?", [item.itemId]);
-      if (stockCheck.length === 0) {
-        throw new Error(`Item with ID ${item.itemId} not found`);
+      // Support custom items: if item.itemId is null/undefined/empty, insert purchase item without changing stock
+      const itemId = item.itemId !== undefined && item.itemId !== null && item.itemId !== '' ? item.itemId : null;
+
+      if (itemId !== null) {
+        // Ensure item exists
+        const [stockCheck] = await connection.query("SELECT quantity FROM items WHERE id = ?", [itemId]);
+        if (stockCheck.length === 0) {
+          throw new Error(`Item with ID ${itemId} not found`);
+        }
+
+        // Insert purchase item
+        await connection.query(
+          "INSERT INTO purchase_items (purchase_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, ?, ?, ?, ?, ?)",
+          [purchaseId, itemId, item.itemName, item.itemPrice, item.quantity, item.totalPrice]
+        );
+
+        // Increase item quantity (because this is stock coming in)
+        await connection.query(
+          "UPDATE items SET quantity = quantity + ? WHERE id = ?",
+          [item.quantity, itemId]
+        );
+
+        // Return updated quantity for client
+        const [afterUpdate] = await connection.query("SELECT quantity FROM items WHERE id = ?", [itemId]);
+        updatedItems.push({ itemId: itemId, newQuantity: afterUpdate[0].quantity });
+      } else {
+        // Custom item - insert without item_id and without stock change
+        await connection.query(
+          "INSERT INTO purchase_items (purchase_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, NULL, ?, ?, ?, ?)",
+          [purchaseId, item.itemName, item.itemPrice, item.quantity, item.totalPrice]
+        );
+        updatedItems.push({ itemId: null, newQuantity: null });
       }
-
-      // Insert purchase item
-      await connection.query(
-        "INSERT INTO purchase_items (purchase_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, ?, ?, ?, ?, ?)",
-        [purchaseId, item.itemId, item.itemName, item.itemPrice, item.quantity, item.totalPrice]
-      );
-
-      // Increase item quantity (because this is stock coming in)
-      await connection.query(
-        "UPDATE items SET quantity = quantity + ? WHERE id = ?",
-        [item.quantity, item.itemId]
-      );
-
-      // Return updated quantity for client
-      const [afterUpdate] = await connection.query("SELECT quantity FROM items WHERE id = ?", [item.itemId]);
-      updatedItems.push({ itemId: item.itemId, newQuantity: afterUpdate[0].quantity });
     }
 
     await connection.commit();
@@ -426,6 +541,248 @@ export const createStockPurchase = async (req, res) => {
     await connection.rollback();
     console.error("Error creating stock purchase:", error);
     res.status(500).json({ message: "Database Error", error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
+// Create a sale (customer invoice) - decreases item quantities
+export const createSale = async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    const { billNumber, customerName, totalAmount, paymentMethod, items } = req.body;
+    if (!billNumber || !items || items.length === 0) {
+      return res.status(400).json({ message: 'Bill number and items are required' });
+    }
+
+    await connection.beginTransaction();
+
+    const offerType = req.body.offerType || req.body.offer_type || null;
+    const offerValue = req.body.offerValue !== undefined ? parseFloat(req.body.offerValue) : (req.body.offer_value !== undefined ? parseFloat(req.body.offer_value) : null);
+    const offerAmount = req.body.offerAmount !== undefined ? parseFloat(req.body.offerAmount) : (req.body.offer_amount !== undefined ? parseFloat(req.body.offer_amount) : 0);
+    const createdBy = req.body.createdBy || req.body.created_by || null;
+    const createdById = req.body.createdById || req.body.created_by_id || null;
+
+    // Compute cost_total for this sale (sum of cost_price * qty). For custom items use provided costPrice or 0.
+    let costTotal = 0;
+    for (const it of items) {
+      const itemId = it.itemId !== undefined && it.itemId !== null && it.itemId !== '' ? it.itemId : null;
+      const qty = parseInt(it.quantity) || 0;
+      if (itemId !== null) {
+        const [r] = await connection.query('SELECT cost_price FROM items WHERE id = ?', [itemId]);
+        const costPrice = (r.length > 0 && r[0].cost_price !== null) ? parseFloat(r[0].cost_price) : 0;
+        costTotal += costPrice * qty;
+      } else {
+        // allow client to send a costPrice for custom items
+        const costPrice = parseFloat(it.costPrice ?? it.cost_price ?? 0) || 0;
+        costTotal += costPrice * qty;
+      }
+    }
+
+    // Compute sale total from item selling prices (prefer explicit totalPrice, otherwise itemPrice * qty)
+    let saleTotal = 0;
+    for (const it of items) {
+      const qty = parseFloat(it.quantity || 0) || 0;
+      const price = parseFloat(it.itemPrice ?? it.price ?? 0) || 0;
+      const lineTotal = (it.totalPrice !== undefined && it.totalPrice !== null) ? parseFloat(it.totalPrice) : parseFloat((price * qty).toFixed(2));
+      saleTotal += lineTotal;
+    }
+
+    // Insert into sales table (store computed saleTotal and computed cost_total)
+    const [saleResult] = await connection.query(
+      'INSERT INTO sales (invoice_number, customer_name, total_amount, cost_total, payment_method, offer_type, offer_value, offer_amount, created_by, created_by_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [billNumber, customerName || 'Walk-in Customer', parseFloat(saleTotal.toFixed(2)), parseFloat(costTotal.toFixed(2)), paymentMethod || 'Cash', offerType, offerValue, offerAmount, createdBy, createdById]
+    );
+
+    const saleId = saleResult.insertId;
+
+    // Process sale items: insert and decrement stock
+    for (const item of items) {
+      const itemId = item.itemId !== undefined && item.itemId !== null && item.itemId !== '' ? item.itemId : null;
+      if (itemId !== null) {
+        const [stockCheck] = await connection.query('SELECT quantity FROM items WHERE id = ?', [itemId]);
+        if (stockCheck.length === 0) throw new Error(`Item with ID ${itemId} not found`);
+        if (stockCheck[0].quantity < item.quantity) throw new Error(`Insufficient stock for item ID ${itemId}. Available: ${stockCheck[0].quantity}, Requested: ${item.quantity}`);
+
+        await connection.query(
+          'INSERT INTO sale_items (sale_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, ?, ?, ?, ?, ?)',
+          [saleId, itemId, item.itemName, item.itemPrice, item.quantity, item.totalPrice]
+        );
+
+        await connection.query('UPDATE items SET quantity = quantity - ? WHERE id = ?', [item.quantity, itemId]);
+      } else {
+        await connection.query('INSERT INTO sale_items (sale_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, NULL, ?, ?, ?, ?)', [saleId, item.itemName, item.itemPrice, item.quantity, item.totalPrice]);
+      }
+    }
+
+    await connection.commit();
+    res.status(201).json({ message: 'Sale recorded', saleId, invoiceNumber: billNumber });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error creating sale:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
+export const getSales = async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM sales ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching sales:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
+  }
+};
+
+export const getSaleDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [sale] = await db.query('SELECT * FROM sales WHERE id = ?', [parseInt(id)]);
+    if (sale.length === 0) return res.status(404).json({ message: 'Sale not found' });
+    const [items] = await db.query('SELECT item_id, item_name as name, item_price as price, quantity, total_price FROM sale_items WHERE sale_id = ?', [parseInt(id)]);
+    res.json({ sale: sale[0], items });
+  } catch (error) {
+    console.error('Error fetching sale details:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
+  }
+};
+
+// Update a sale (invoice) - allows editing metadata and line items, adjusts stock accordingly
+export const updateSale = async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    const { id } = req.params;
+    const { billNumber, customerName, totalAmount, paymentMethod, items, offerType, offerValue, offerAmount, createdBy, createdById } = req.body;
+
+    await connection.beginTransaction();
+
+    // Ensure sale exists
+    const [saleRows] = await connection.query('SELECT * FROM sales WHERE id = ?', [parseInt(id)]);
+    if (saleRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Sale not found' });
+    }
+
+    // Revert stock changes from existing sale items
+    const [oldItems] = await connection.query('SELECT item_id, quantity FROM sale_items WHERE sale_id = ?', [parseInt(id)]);
+    for (const oi of oldItems) {
+      if (oi.item_id !== null) {
+        await connection.query('UPDATE items SET quantity = quantity + ? WHERE id = ?', [oi.quantity, oi.item_id]);
+      }
+    }
+
+    // Delete old sale_items
+    await connection.query('DELETE FROM sale_items WHERE sale_id = ?', [parseInt(id)]);
+
+    // Insert new sale items and apply stock reductions
+    if (Array.isArray(items)) {
+      // Validate stock availability for new items
+      for (const it of items) {
+        const itemId = it.itemId !== undefined && it.itemId !== null && it.itemId !== '' ? it.itemId : null;
+        const qty = parseInt(it.quantity) || 0;
+        if (itemId !== null) {
+          const [stockCheck] = await connection.query('SELECT quantity FROM items WHERE id = ?', [itemId]);
+          if (stockCheck.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ message: `Item with ID ${itemId} not found` });
+          }
+          if (stockCheck[0].quantity < qty) {
+            await connection.rollback();
+            return res.status(400).json({ message: `Insufficient stock for item ID ${itemId}. Available: ${stockCheck[0].quantity}, Requested: ${qty}` });
+          }
+        }
+      }
+
+      // All good, insert and decrement
+      for (const it of items) {
+        const itemId = it.itemId !== undefined && it.itemId !== null && it.itemId !== '' ? it.itemId : null;
+        const qty = parseInt(it.quantity) || 0;
+        const totalPrice = parseFloat(it.totalPrice ?? it.total_price ?? it.total ?? 0);
+        if (itemId !== null) {
+          await connection.query('INSERT INTO sale_items (sale_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, ?, ?, ?, ?, ?)', [parseInt(id), itemId, it.itemName || it.name || null, parseFloat(it.itemPrice ?? it.price ?? 0), qty, totalPrice]);
+          await connection.query('UPDATE items SET quantity = quantity - ? WHERE id = ?', [qty, itemId]);
+        } else {
+          await connection.query('INSERT INTO sale_items (sale_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, NULL, ?, ?, ?, ?)', [parseInt(id), it.itemName || it.name || null, parseFloat(it.itemPrice ?? it.price ?? 0), qty, totalPrice]);
+        }
+      }
+    }
+
+    // Recompute sale total and cost_total for the updated sale
+    // Recompute sale total from provided items
+    let newTotalAmount = 0;
+    if (Array.isArray(items)) {
+      for (const it of items) {
+        const qty = parseFloat(it.quantity || 0) || 0;
+        const price = parseFloat(it.itemPrice ?? it.price ?? 0) || 0;
+        const lineTotal = (it.totalPrice !== undefined && it.totalPrice !== null) ? parseFloat(it.totalPrice) : parseFloat((price * qty).toFixed(2));
+        newTotalAmount += lineTotal;
+      }
+    }
+
+    // Recompute cost_total for the updated sale
+    let newCostTotal = 0;
+    if (Array.isArray(items)) {
+      for (const it of items) {
+        const itemId = it.itemId !== undefined && it.itemId !== null && it.itemId !== '' ? it.itemId : null;
+        const qty = parseInt(it.quantity) || 0;
+        if (itemId !== null) {
+          const [r] = await connection.query('SELECT cost_price FROM items WHERE id = ?', [itemId]);
+          const costPrice = (r.length > 0 && r[0].cost_price !== null) ? parseFloat(r[0].cost_price) : 0;
+          newCostTotal += costPrice * qty;
+        } else {
+          const costPrice = parseFloat(it.costPrice ?? it.cost_price ?? 0) || 0;
+          newCostTotal += costPrice * qty;
+        }
+      }
+    }
+
+    await connection.query(
+      'UPDATE sales SET invoice_number = ?, customer_name = ?, total_amount = ?, payment_method = ?, offer_type = ?, offer_value = ?, offer_amount = ?, created_by = ?, created_by_id = ?, cost_total = ? WHERE id = ?',
+      [billNumber, customerName || 'Walk-in Customer', parseFloat(newTotalAmount.toFixed(2)), paymentMethod || 'Cash', offerType || null, offerValue !== undefined ? offerValue : null, offerAmount !== undefined ? offerAmount : 0, createdBy || null, createdById || null, parseFloat(newCostTotal.toFixed(2)), parseInt(id)]
+    );
+
+    await connection.commit();
+    res.json({ message: 'Sale updated successfully', saleId: parseInt(id) });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error updating sale:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
+// Delete a sale (invoice) - restores stock and removes sale and its items
+export const deleteSale = async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    const { id } = req.params;
+    await connection.beginTransaction();
+
+    const [saleRows] = await connection.query('SELECT id FROM sales WHERE id = ?', [parseInt(id)]);
+    if (saleRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Sale not found' });
+    }
+
+    const [items] = await connection.query('SELECT item_id, quantity FROM sale_items WHERE sale_id = ?', [parseInt(id)]);
+    for (const it of items) {
+      if (it.item_id !== null) {
+        await connection.query('UPDATE items SET quantity = quantity + ? WHERE id = ?', [it.quantity, it.item_id]);
+      }
+    }
+
+    await connection.query('DELETE FROM sale_items WHERE sale_id = ?', [parseInt(id)]);
+    await connection.query('DELETE FROM sales WHERE id = ?', [parseInt(id)]);
+
+    await connection.commit();
+    res.json({ message: 'Sale deleted successfully' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error deleting sale:', error);
+    res.status(500).json({ message: 'Database Error', error: error.message });
   } finally {
     connection.release();
   }
@@ -916,32 +1273,53 @@ export const updatePurchase = async (req, res) => {
         "SELECT item_id, quantity FROM purchase_items WHERE purchase_id = ?",
         [parseInt(id)]
       );
-      
-      // Restore original inventory quantities
+
+      // Revert inventory changes from the existing purchase: since purchases (supplier stock receipts)
+      // previously INCREASED item quantities, we must subtract those old quantities to revert them.
       for (const item of currentItems) {
-        await connection.query(
-          "UPDATE items SET quantity = quantity + ? WHERE id = ?",
-          [item.quantity, item.item_id]
-        );
+        if (item.item_id !== null) {
+          await connection.query(
+            "UPDATE items SET quantity = quantity - ? WHERE id = ?",
+            [item.quantity, item.item_id]
+          );
+        }
       }
-      
-      // Update purchase items with new quantities
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        const itemPrice = parseFloat(item.price) || 0;
-        const itemQuantity = parseInt(item.quantity) || 0;
-        const newTotalPrice = itemPrice * itemQuantity;
-        
-        await connection.query(
-          "UPDATE purchase_items SET quantity = ?, total_price = ? WHERE purchase_id = ? AND item_id = ?",
-          [itemQuantity, newTotalPrice, parseInt(id), item.item_id]
-        );
-        
-        // Deduct new quantities from inventory
-        await connection.query(
-          "UPDATE items SET quantity = quantity - ? WHERE id = ?",
-          [itemQuantity, item.item_id]
-        );
+
+      // Remove old purchase items; we'll re-insert the new set below
+      await connection.query("DELETE FROM purchase_items WHERE purchase_id = ?", [parseInt(id)]);
+
+      // Insert new purchase items and apply inventory increases for supplier stock
+      for (const it of items) {
+        const itemId = it.item_id ?? it.itemId ?? null;
+        const qty = parseInt(it.quantity) || 0;
+        const price = parseFloat(it.price ?? it.itemPrice ?? 0) || 0;
+        const totalPrice = parseFloat((qty * price).toFixed(2));
+
+        if (itemId !== null) {
+          // Ensure item exists
+          const [exists] = await connection.query("SELECT id FROM items WHERE id = ?", [itemId]);
+          if (exists.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ message: `Item with ID ${itemId} not found` });
+          }
+
+          await connection.query(
+            "INSERT INTO purchase_items (purchase_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, ?, ?, ?, ?, ?)",
+            [parseInt(id), itemId, it.name || it.itemName || null, price, qty, totalPrice]
+          );
+
+          // Increase stock for supplier purchase
+          await connection.query(
+            "UPDATE items SET quantity = quantity + ? WHERE id = ?",
+            [qty, itemId]
+          );
+        } else {
+          // Custom/service item: insert without affecting stock
+          await connection.query(
+            "INSERT INTO purchase_items (purchase_id, item_id, item_name, item_price, quantity, total_price) VALUES (?, NULL, ?, ?, ?, ?)",
+            [parseInt(id), it.name || it.itemName || null, price, qty, totalPrice]
+          );
+        }
       }
     }
 

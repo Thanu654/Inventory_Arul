@@ -16,6 +16,7 @@ const Offers = () => {
   // Form state
   const [formData, setFormData] = useState({
     offerType: '',
+    offerValue: '',
     description: '',
     selectedProducts: [],
     realTotal: 0,
@@ -62,6 +63,7 @@ const Offers = () => {
   const resetForm = () => {
     setFormData({
       offerType: '',
+      offerValue: '',
       description: '',
       selectedProducts: [],
       realTotal: 0,
@@ -126,12 +128,43 @@ const Offers = () => {
       const quantity = parseInt(product.quantity) || 0;
       return sum + (price * quantity);
     }, 0);
-    setFormData(prev => ({ ...prev, realTotal, offerTotal: offerTotal || prev.offerTotal }));
+    setFormData(prev => {
+      let derivedOfferTotal = offerTotal || prev.offerTotal;
+
+      if (prev.offerType === 'percentage' && prev.offerValue !== '' && prev.offerValue !== null) {
+        const pct = Math.max(0, Math.min(100, parseFloat(prev.offerValue) || 0));
+        derivedOfferTotal = +(realTotal * (1 - pct / 100)).toFixed(2);
+      } else if (prev.offerType === 'fixed' && prev.offerValue !== '' && prev.offerValue !== null) {
+        const discount = Math.max(0, parseFloat(prev.offerValue) || 0);
+        const appliedDiscount = Math.min(discount, realTotal);
+        derivedOfferTotal = +(realTotal - appliedDiscount).toFixed(2);
+      }
+
+      return { ...prev, realTotal, offerTotal: derivedOfferTotal };
+    });
   };
 
-  const handleOfferTotalChange = (value) => {
-    const offerTotal = parseFloat(value) || 0;
-    setFormData(prev => ({ ...prev, offerTotal }));
+  const handleOfferValueChange = (value) => {
+    const num = parseFloat(value);
+    const offerValue = isNaN(num) ? '' : num;
+
+    // compute offerTotal based on offerType
+    let offerTotal = formData.realTotal;
+
+    if (formData.offerType === 'percentage') {
+      const pct = isNaN(offerValue) ? 0 : Math.max(0, Math.min(100, offerValue));
+      offerTotal = +(formData.realTotal * (1 - pct / 100)).toFixed(2);
+    } else if (formData.offerType === 'fixed') {
+      const discount = isNaN(offerValue) ? 0 : Math.max(0, offerValue);
+      // ensure discount does not exceed real total
+      if (discount > formData.realTotal) {
+        toast.error('Offer discount cannot exceed total sale value');
+      }
+      const appliedDiscount = Math.min(discount, formData.realTotal);
+      offerTotal = +(formData.realTotal - appliedDiscount).toFixed(2);
+    }
+
+    setFormData(prev => ({ ...prev, offerValue, offerTotal }));
   };
 
   const handleSubmit = async (e) => {
@@ -242,8 +275,24 @@ const Offers = () => {
       if (response.ok) {
         const data = await response.json();
         setSelectedOffer(data);
+        // derive offerValue and normalized offerType when editing
+        const realTotalNum = parseFloat(data.real_total) || 0;
+        const offerTotalNum = parseFloat(data.offer_total) || 0;
+        const discountAmount = Math.max(0, realTotalNum - offerTotalNum);
+        let derivedType = 'fixed';
+        let derivedValue = discountAmount;
+
+        if (data.offer_type && typeof data.offer_type === 'string') {
+          const t = data.offer_type.toLowerCase();
+          if (t.includes('%') || t.includes('percent')) {
+            derivedType = 'percentage';
+            derivedValue = realTotalNum === 0 ? 0 : +((discountAmount / realTotalNum) * 100).toFixed(2);
+          }
+        }
+
         setFormData({
-          offerType: data.offer_type,
+          offerType: derivedType,
+          offerValue: derivedValue,
           description: data.description || '',
           selectedProducts: (data.products || []).map(product => ({
             id: product.product_id || product.id,
@@ -252,8 +301,8 @@ const Offers = () => {
             quantity: product.quantity,
             maxQuantity: product.maxQuantity || 999
           })),
-          realTotal: data.real_total,
-          offerTotal: data.offer_total
+          realTotal: realTotalNum,
+          offerTotal: offerTotalNum
         });
         setIsEditModalOpen(true);
       }
@@ -411,14 +460,33 @@ const Offers = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Offer Type *
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={formData.offerType}
-                      onChange={(e) => setFormData(prev => ({ ...prev, offerType: e.target.value }))}
+                      onChange={(e) => {
+                        const newType = e.target.value;
+                        // derive new offerTotal using current offerValue and newType
+                        let derivedOfferTotal = formData.realTotal;
+                        const v = parseFloat(formData.offerValue) || 0;
+                        if (newType === 'percentage') {
+                          const pct = Math.max(0, Math.min(100, v));
+                          derivedOfferTotal = +(formData.realTotal * (1 - pct / 100)).toFixed(2);
+                        } else if (newType === 'fixed') {
+                          const appliedDiscount = Math.min(Math.max(0, v), formData.realTotal);
+                          derivedOfferTotal = +(formData.realTotal - appliedDiscount).toFixed(2);
+                        }
+                        setFormData(prev => ({ ...prev, offerType: newType, offerTotal: derivedOfferTotal }));
+                      }}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., Flash Sale, Bundle Deal, Holiday Special"
+                      disabled={formData.selectedProducts.length === 0}
                       required
-                    />
+                    >
+                      <option value="">Select offer type</option>
+                      <option value="percentage">Percentage (%)</option>
+                      <option value="fixed">Fixed (LKR)</option>
+                    </select>
+                    {formData.selectedProducts.length === 0 && (
+                      <p className="text-xs text-gray-500 mt-1">Select at least one product to choose type</p>
+                    )}
                   </div>
                   
                   <div>
@@ -562,17 +630,19 @@ const Offers = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Offer Total *
+                      Offer Value *
                     </label>
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.offerTotal}
-                      onChange={(e) => handleOfferTotalChange(e.target.value)}
+                      value={formData.offerValue}
+                      onChange={(e) => handleOfferValueChange(e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter offer price"
+                      placeholder={formData.offerType === 'percentage' ? 'Enter percentage (e.g., 20 for 20%)' : 'Enter discount amount (LKR)'}
+                      disabled={!formData.offerType || formData.selectedProducts.length === 0}
                       required
                     />
+                    <p className="text-xs text-gray-500 mt-1">Tip: use % type to apply percentage discount, or LKR for fixed amount.</p>
                   </div>
                   
                   <div>

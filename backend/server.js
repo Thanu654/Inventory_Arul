@@ -8,6 +8,7 @@ import db from "./config/db.js";
 import authRoutes from './routes/authRoutes.js';
 import bcrypt from 'bcryptjs';
 import staffRoutes from "./routes/staffRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
 
 dotenv.config();
 
@@ -45,6 +46,7 @@ app.get("/api/health", async (req, res) => {
 app.use("/api", authRoutes);
 app.use("/api", inventoryRoutes);
 app.use("/api", staffRoutes);
+app.use("/api", reportRoutes);
 
 
 // Error handling middleware
