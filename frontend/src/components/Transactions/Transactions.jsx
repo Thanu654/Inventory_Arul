@@ -6,6 +6,10 @@ const Transactions = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filterType, setFilterType] = useState('all'); // 'all' | 'sale' | 'supplier'
+  const [users, setUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -22,14 +26,30 @@ const Transactions = () => {
     items: []
   });
 
+  // Fetch users on component mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/users`);
+        if (res.ok) {
+          const usersData = await res.json();
+          setUsers(usersData);
+        }
+      } catch (err) {
+        console.error('Failed to fetch users:', err);
+      }
+    };
+    fetchUsers();
+  }, []);
+
   useEffect(() => {
     fetchTransactions();
   }, []);
 
   useEffect(() => {
-    // refetch when user switches tab/filter
+    // refetch when user switches tab/filter or changes date/user filters
     fetchTransactions();
-  }, [filterType]);
+  }, [filterType, selectedUserId, startDate, endDate]);
 
   const fetchTransactions = async () => {
     try {
@@ -41,7 +61,7 @@ const Transactions = () => {
         if (!res.ok) throw new Error('Failed to fetch sales');
         const rows = await res.json();
         // Normalize shape
-        const mapped = rows.map(r => ({
+        let mapped = rows.map(r => ({
           id: r.id,
           bill_number: r.invoice_number || r.bill_number || null,
           customer_name: r.customer_name || r.customer || 'Walk-in Customer',
@@ -50,6 +70,9 @@ const Transactions = () => {
           source: 'sale',
           raw: r
         }));
+        
+        // Apply filters
+        mapped = applyFilters(mapped);
         setTransactions(mapped);
         return;
       }
@@ -58,7 +81,7 @@ const Transactions = () => {
         const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/purchases?type=supplier`);
         if (!res.ok) throw new Error('Failed to fetch supplier purchases');
         const rows = await res.json();
-        const mapped = rows.map(r => ({
+        let mapped = rows.map(r => ({
           id: r.id,
           bill_number: r.bill_number || null,
           customer_name: r.customer_name || r.supplier_name || 'Supplier',
@@ -67,6 +90,9 @@ const Transactions = () => {
           source: 'purchase',
           raw: r
         }));
+        
+        // Apply filters
+        mapped = applyFilters(mapped);
         setTransactions(mapped);
         return;
       }
@@ -96,7 +122,11 @@ const Transactions = () => {
         source: 'purchase',
         raw: r
       }));
-      const merged = [...salesMapped, ...purchasesMapped];
+      let merged = [...salesMapped, ...purchasesMapped];
+      
+      // Apply filters
+      merged = applyFilters(merged);
+      
       // sort by created_at desc
       merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setTransactions(merged);
@@ -106,6 +136,42 @@ const Transactions = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyFilters = (data) => {
+    let filtered = data;
+
+    // Filter by created_by user
+    if (selectedUserId) {
+      filtered = filtered.filter(t => {
+        const createdByName = t.raw?.created_by;
+        const createdById = t.raw?.created_by_id;
+        
+        // Match by ID or by name
+        if (createdById && createdById.toString() === selectedUserId) return true;
+        
+        // Find user name by ID from users list
+        const user = users.find(u => u.id.toString() === selectedUserId);
+        if (user && createdByName === user.name) return true;
+        
+        return false;
+      });
+    }
+
+    // Filter by date range
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(t => new Date(t.created_at) >= start);
+    }
+
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(t => new Date(t.created_at) <= end);
+    }
+
+    return filtered;
   };
 
   const fetchPurchaseItems = async (transaction) => {
@@ -374,6 +440,76 @@ const Transactions = () => {
         </div>
       </div>
 
+      {/* Date and User Filters */}
+      <div className="mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Created By Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Created By</label>
+            <select
+              value={selectedUserId}
+              onChange={(e) => {
+                setSelectedUserId(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Users</option>
+              {users.map(user => (
+                <option key={user.id} value={user.id}>
+                  {user.name} ({user.role})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Start Date Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* End Date Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Clear Filters Button */}
+        {(selectedUserId || startDate || endDate) && (
+          <div className="mt-3">
+            <button
+              onClick={() => {
+                setSelectedUserId('');
+                setStartDate('');
+                setEndDate('');
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-md text-sm font-medium"
+            >
+              Clear Filters
+            </button>
+          </div>
+        )}
+      </div>
+
       {transactions.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-gray-600 text-lg">No transactions found.</p>
@@ -392,10 +528,13 @@ const Transactions = () => {
                       Customer Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Amount
+                      Total (After Discount)
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Created By
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Type
@@ -423,7 +562,7 @@ const Transactions = () => {
                     if (filtered.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={6} className="px-6 py-8 text-center text-gray-500">No transactions for selected filter.</td>
+                          <td colSpan={7} className="px-6 py-8 text-center text-gray-500">No transactions for selected filter.</td>
                         </tr>
                       );
                     }
@@ -437,12 +576,20 @@ const Transactions = () => {
                           {transaction.customer_name || 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <span className="font-semibold text-green-600">
-                            ${parseFloat(transaction.total_amount).toFixed(2)}
+                          <span className={`font-semibold ${transaction.source === 'sale' ? 'text-green-600' : 'text-red-600'}`}>
+                            {transaction.source === 'sale' ? '+' : '-'}${(() => {
+                              const subtotal = parseFloat(transaction.total_amount) || 0;
+                              const discount = parseFloat(transaction.raw?.offer_amount ?? 0);
+                              const total = subtotal - discount;
+                              return Math.max(total, 0).toFixed(2);
+                            })()}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {formatDate(transaction.created_at)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {transaction.raw?.created_by || 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span className="text-xs px-2 py-1 rounded-full bg-gray-100">{transaction.source === 'purchase' ? 'Supplier' : 'Sale'}</span>
@@ -489,8 +636,8 @@ const Transactions = () => {
             </div>
             
             {/* Page Total */}
-            <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
-              <div className="flex justify-between items-center">
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div className="text-sm text-gray-600">
                   Page {currentPage} of {Math.ceil(transactions.filter(t => {
                     if (filterType === 'all') return true;
@@ -499,24 +646,91 @@ const Transactions = () => {
                     return true;
                   }).length / transactionsPerPage)}
                 </div>
-                <div className="text-lg font-semibold text-green-600">
-                  Page Total: ${(() => {
-                    // compute totals for current filtered page
-                    const filtered = transactions.filter(t => {
-                      if (filterType === 'all') return true;
-                      if (filterType === 'supplier') return (t.purchase_type === 'supplier');
-                      if (filterType === 'sale') return (t.purchase_type !== 'supplier');
-                      return true;
-                    });
-                    const currentTransactions = filtered.slice(
-                      (currentPage - 1) * transactionsPerPage,
-                      currentPage * transactionsPerPage
-                    );
-                    const pageTotal = currentTransactions.reduce((sum, transaction) => {
-                      return sum + parseFloat(transaction.total_amount);
-                    }, 0);
-                    return pageTotal.toFixed(2);
-                  })()}
+                
+                {/* Total Breakdown */}
+                <div className="flex flex-col md:flex-row gap-6">
+                  {/* Sales Total */}
+                  <div className="text-lg font-semibold text-green-600">
+                    Sales Total: +${(() => {
+                      const filtered = transactions.filter(t => {
+                        if (filterType === 'all') return (t.source === 'sale');
+                        if (filterType === 'supplier') return false;
+                        if (filterType === 'sale') return (t.source === 'sale');
+                        return false;
+                      });
+                      const currentTransactions = filtered.slice(
+                        (currentPage - 1) * transactionsPerPage,
+                        currentPage * transactionsPerPage
+                      );
+                      const salesTotal = currentTransactions.reduce((sum, transaction) => {
+                        const subtotal = parseFloat(transaction.total_amount) || 0;
+                        const discount = parseFloat(transaction.raw?.offer_amount ?? 0);
+                        const total = subtotal - discount;
+                        return sum + Math.max(total, 0);
+                      }, 0);
+                      return salesTotal.toFixed(2);
+                    })()}
+                  </div>
+
+                  {/* Supplier Total */}
+                  <div className="text-lg font-semibold text-red-600">
+                    Supplier Total: -${(() => {
+                      const filtered = transactions.filter(t => {
+                        if (filterType === 'all') return (t.source === 'purchase');
+                        if (filterType === 'supplier') return (t.source === 'purchase');
+                        if (filterType === 'sale') return false;
+                        return false;
+                      });
+                      const currentTransactions = filtered.slice(
+                        (currentPage - 1) * transactionsPerPage,
+                        currentPage * transactionsPerPage
+                      );
+                      const supplierTotal = currentTransactions.reduce((sum, transaction) => {
+                        const subtotal = parseFloat(transaction.total_amount) || 0;
+                        const discount = parseFloat(transaction.raw?.offer_amount ?? 0);
+                        const total = subtotal - discount;
+                        return sum + Math.max(total, 0);
+                      }, 0);
+                      return supplierTotal.toFixed(2);
+                    })()}
+                  </div>
+
+                  {/* Net Total */}
+                  <div className="text-lg font-semibold text-blue-600 border-l-2 border-blue-300 pl-6">
+                    Net Total: ${(() => {
+                      const filtered = transactions.filter(t => {
+                        if (filterType === 'all') return true;
+                        if (filterType === 'supplier') return (t.source === 'purchase');
+                        if (filterType === 'sale') return (t.source === 'sale');
+                        return true;
+                      });
+                      const currentTransactions = filtered.slice(
+                        (currentPage - 1) * transactionsPerPage,
+                        currentPage * transactionsPerPage
+                      );
+                      
+                      const salesTotal = currentTransactions
+                        .filter(t => t.source === 'sale')
+                        .reduce((sum, transaction) => {
+                          const subtotal = parseFloat(transaction.total_amount) || 0;
+                          const discount = parseFloat(transaction.raw?.offer_amount ?? 0);
+                          const total = subtotal - discount;
+                          return sum + Math.max(total, 0);
+                        }, 0);
+                      
+                      const supplierTotal = currentTransactions
+                        .filter(t => t.source === 'purchase')
+                        .reduce((sum, transaction) => {
+                          const subtotal = parseFloat(transaction.total_amount) || 0;
+                          const discount = parseFloat(transaction.raw?.offer_amount ?? 0);
+                          const total = subtotal - discount;
+                          return sum + Math.max(total, 0);
+                        }, 0);
+                      
+                      const netTotal = salesTotal - supplierTotal;
+                      return netTotal.toFixed(2);
+                    })()}
+                  </div>
                 </div>
               </div>
             </div>
@@ -679,7 +893,33 @@ const Transactions = () => {
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Total</h3>
-                  <p className="text-lg font-semibold text-green-600">${parseFloat(transactionDetails?.total_amount ?? viewingTransaction?.total_amount ?? 0).toFixed(2)}</p>
+                  <p className="text-lg font-semibold text-green-600">${(() => {
+                    const subtotal = purchaseItems.reduce((s, it) => {
+                      const rawVal = (it.total_price ?? it.totalPrice ?? it.total) || 0;
+                      const v = parseFloat(rawVal);
+                      return s + (isNaN(v) ? 0 : v);
+                    }, 0);
+                    const discount = parseFloat(transactionDetails?.offer_amount ?? transactionDetails?.offerAmount ?? viewingTransaction?.raw?.offer_amount ?? 0);
+                    const total = subtotal - discount;
+                    return Math.max(total, 0).toFixed(2);
+                  })()}</p>
+                </div>
+              </div>
+
+              {/* Total Amount Summary */}
+              <div className="bg-blue-50 border-2 border-blue-200 p-6 rounded-lg mb-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-gray-800">Total Amount (After Discount)</h3>
+                  <p className="text-2xl font-bold text-blue-600">${(() => {
+                    const subtotal = purchaseItems.reduce((s, it) => {
+                      const rawVal = (it.total_price ?? it.totalPrice ?? it.total) || 0;
+                      const v = parseFloat(rawVal);
+                      return s + (isNaN(v) ? 0 : v);
+                    }, 0);
+                    const discount = parseFloat(transactionDetails?.offer_amount ?? transactionDetails?.offerAmount ?? viewingTransaction?.raw?.offer_amount ?? 0);
+                    const total = subtotal - discount;
+                    return Math.max(total, 0).toFixed(2);
+                  })()}</p>
                 </div>
               </div>
 

@@ -465,13 +465,18 @@ export const createStockPurchase = async (req, res) => {
     const createdBy = req.body.createdBy || req.body.created_by || null;
     const createdById = req.body.createdById || req.body.created_by_id || null;
 
+    console.log('[createStockPurchase] Request body:', { billNumber, createdBy, createdById });
+    console.log('[createStockPurchase] Full req.body:', req.body);
+
     let purchaseResult;
     try {
       [purchaseResult] = await connection.query(
         "INSERT INTO purchases (bill_number, customer_name, total_amount, payment_method, supplier_id, invoice_date, due_date, payment_status, purchase_type, offer_type, offer_value, offer_amount, created_by, created_by_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'supplier', ?, ?, ?, ?, ?)",
         [billNumber, customerName || 'Supplier', totalAmount, paymentMethod || 'Cash', supplierId || null, invoiceDate || null, dueDate || null, paymentStatus || 'pending', offerType, offerValue, offerAmount, createdBy, createdById]
       );
+      console.log('[createStockPurchase] Purchase inserted with ID:', purchaseResult.insertId, 'created_by:', createdBy);
     } catch (err) {
+      console.error('[createStockPurchase] Error inserting purchase:', err.message);
       if (err && (err.code === 'ER_BAD_FIELD_ERROR' || (err.message && err.message.includes('created_by')))) {
         console.warn('created_by column missing, retrying supplier purchase insert without creator fields');
         try {
@@ -806,6 +811,7 @@ export const getPurchases = async (req, res) => {
     query += ' GROUP BY p.id ORDER BY p.created_at DESC';
 
     const [purchases] = await db.query(query, params);
+    console.log('[getPurchases] Returning purchases with created_by values:', purchases.map(p => ({ id: p.id, bill_number: p.bill_number, created_by: p.created_by })));
     res.json(purchases);
   } catch (error) {
     console.error("Error fetching purchases:", error);

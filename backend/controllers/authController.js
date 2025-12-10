@@ -34,5 +34,15 @@ export const login = async (req, res) => {
   }
 };
 
-
+export const getAllUsers = async (req, res) => {
+  try {
+    const [users] = await db.query(
+      'SELECT id, name, email, role, status FROM users WHERE status = "active" ORDER BY name ASC'
+    );
+    return res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
 

@@ -24,7 +24,12 @@ const Purchases = () => {
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchPurchases(); }, []);
+  useEffect(() => {
+    fetchPurchases();
+    // Get current user name from localStorage
+    const userName = localStorage.getItem('name') || 'User';
+    setCurrentUserName(userName);
+  }, []);
 
   useEffect(() => {
     fetchItems();
@@ -194,6 +199,7 @@ const Purchases = () => {
         invoiceDate: newInvoice.invoiceDate || null,
         dueDate: newInvoice.dueDate || null,
         paymentStatus: paymentStatus,
+        created_by: currentUserName,
         items: newInvoice.items.map(it => ({ itemId: it.itemId, itemName: itemsList.find(i => i.id == it.itemId)?.name || '', itemPrice: parseFloat(it.unitPrice || 0), quantity: parseInt(it.qty), totalPrice: parseFloat(it.total || 0) }))
       };
 
@@ -235,7 +241,7 @@ const Purchases = () => {
         {loading ? <div>Loading...</div> : (
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="text-left"><th>ID</th><th>Invoice</th><th>Supplier</th><th>Total</th><th>Balance</th><th>Date</th><th>Actions</th></tr>
+              <tr className="text-left"><th>ID</th><th>Invoice</th><th>Supplier</th><th>Total</th><th>Balance</th><th>Date</th><th>Created By</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {purchases.map(p => {
@@ -269,6 +275,7 @@ const Purchases = () => {
                     <td>${parseFloat(p.total_amount).toFixed(2)}</td>
                     <td>${(total - paid).toFixed(2)}</td>
                     <td>{showDue ? (p.due_date ? new Date(p.due_date).toLocaleDateString() : '-') : new Date(p.created_at).toLocaleDateString()}</td>
+                    <td>{p.created_by || '-'}</td>
                     <td>
                       <div className="flex items-center space-x-2">
                         {status === 'paid' ? (
@@ -416,7 +423,7 @@ const Purchases = () => {
               <button onClick={closeNewInvoice} className="text-xl">×</button>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-4 gap-3 mb-3">
               <div>
                 <label className="block text-sm">Invoice #</label>
                 <input className="w-full px-2 py-1 border" value={newInvoice.billNumber} onChange={(e)=>setNewInvoice(prev=>({...prev,billNumber:e.target.value}))} />
@@ -431,6 +438,10 @@ const Purchases = () => {
               <div>
                 <label className="block text-sm">Invoice Date</label>
                 <input type="date" className="w-full px-2 py-1 border" value={newInvoice.invoiceDate} onChange={(e)=>setNewInvoice(prev=>({...prev,invoiceDate:e.target.value}))} />
+              </div>
+              <div>
+                <label className="block text-sm">Created By</label>
+                <input type="text" className="w-full px-2 py-1 border bg-gray-100" value={currentUserName} readOnly disabled />
               </div>
             </div>
 
