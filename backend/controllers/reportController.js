@@ -357,11 +357,121 @@ export const addExpense = async (req, res) => {
   }
 };
 
+// Profit Summary Report: Shows invoice-level profit details with expenses
+// Returns: invoice details with profit, total expenses, and net profit (total profit - total expenses)
+// Also returns summaries for: before start day, selected period, and overall
+export const profitSummaryReport = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    // Helper function to get summary for a date condition
+    const getSummary = async (salesDateCond, expenseDateCond, params) => {
+      // Fetch invoices
+      const [invoices] = await db.query(
+        `SELECT id as sale_id, invoice_number, customer_name, total_amount, cost_total, offer_amount, created_at
+         FROM sales
+         WHERE 1=1 ${salesDateCond}
+         ORDER BY created_at ASC`, params
+      );
+
+      // Calculate profit for each invoice
+      const invoiceDetails = invoices.map(inv => {
+        const total_amount = parseFloat(inv.total_amount || 0);
+        const cost_total = parseFloat(inv.cost_total || 0);
+        const offer_amount = parseFloat(inv.offer_amount || 0);
+        const profit = parseFloat((total_amount - cost_total - offer_amount).toFixed(2));
+        return {
+          invoice_number: inv.invoice_number,
+          customer_name: inv.customer_name,
+          total_amount: parseFloat(total_amount.toFixed(2)),
+          cost_total: parseFloat(cost_total.toFixed(2)),
+          offer_amount: parseFloat(offer_amount.toFixed(2)),
+          profit: profit,
+          date: inv.created_at
+        };
+      });
+
+      // Get expenses with details
+      const [expenseRows] = await db.query(
+        `SELECT id, title, category, amount, note, created_at FROM expenses WHERE 1=1 ${expenseDateCond} ORDER BY created_at ASC`,
+        params
+      );
+
+      const expenseDetails = expenseRows.map(exp => ({
+        id: exp.id,
+        title: exp.title,
+        category: exp.category,
+        amount: parseFloat(exp.amount || 0),
+        note: exp.note,
+        created_at: exp.created_at
+      }));
+
+      const totalExpenses = expenseDetails.reduce((sum, exp) => sum + exp.amount, 0);
+
+      // Calculate totals
+      const totalProfit = invoiceDetails.reduce((sum, inv) => sum + inv.profit, 0);
+      const netProfit = parseFloat((totalProfit - totalExpenses).toFixed(2));
+
+      return {
+        invoices: invoiceDetails,
+        expenses: expenseDetails,
+        expenses_total: parseFloat(totalExpenses.toFixed(2)),
+        totals: {
+          total_invoices: invoiceDetails.length,
+          total_sales: parseFloat(invoiceDetails.reduce((sum, inv) => sum + inv.total_amount, 0).toFixed(2)),
+          total_cost: parseFloat(invoiceDetails.reduce((sum, inv) => sum + inv.cost_total, 0).toFixed(2)),
+          total_profit: parseFloat(totalProfit.toFixed(2)),
+          total_expenses: parseFloat(totalExpenses.toFixed(2)),
+          net_profit: netProfit
+        }
+      };
+    };
+
+    // 1. Get summary for BEFORE start date (if startDate is provided)
+    let beforeStartSummary = null;
+    if (startDate) {
+      const beforeSalesCond = ' AND created_at < ?';
+      const beforeExpenseCond = ' AND created_at < ?';
+      const beforeParams = [startDate + ' 00:00:00'];
+      beforeStartSummary = await getSummary(beforeSalesCond, beforeExpenseCond, beforeParams);
+    }
+
+    // 2. Get summary for SELECTED PERIOD
+    const selectedParams = [];
+    let selectedSalesCond = '';
+    let selectedExpenseCond = '';
+    if (startDate) { 
+      selectedSalesCond += ' AND created_at >= ?'; 
+      selectedExpenseCond += ' AND created_at >= ?';
+      selectedParams.push(startDate + ' 00:00:00'); 
+    }
+    if (endDate) { 
+      selectedSalesCond += ' AND created_at <= ?'; 
+      selectedExpenseCond += ' AND created_at <= ?';
+      selectedParams.push(endDate + ' 23:59:59'); 
+    }
+    const selectedSummary = await getSummary(selectedSalesCond, selectedExpenseCond, selectedParams);
+
+    // 3. Get OVERALL summary (all data)
+    const overallSummary = await getSummary('', '', []);
+
+    res.json({
+      before_start_day: beforeStartSummary,
+      selected_period: selectedSummary,
+      overall: overallSummary
+    });
+  } catch (err) {
+    console.error('profitSummaryReport error', err.message);
+    res.status(500).json({ message: 'Failed to generate profit summary report', error: err.message });
+  }
+};
+
 export default {
   productReport,
   profitReport,
   productHistory,
   salesReport,
   getExpenses,
-  addExpense
+  addExpense,
+  profitSummaryReport
 };

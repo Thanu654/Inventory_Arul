@@ -16,6 +16,8 @@ export default function Reports() {
   const [expenses, setExpenses] = useState([]);
   const [expenseForm, setExpenseForm] = useState({ title: '', category: '', amount: '', note: '' });
   const [range, setRange] = useState({ startDate: '', endDate: '' });
+  const [profitSummaryDetail, setProfitSummaryDetail] = useState(null);
+  const [productHistoryFilter, setProductHistoryFilter] = useState({ date: '' });
 
   useEffect(() => {
     fetchReports();
@@ -79,8 +81,10 @@ export default function Reports() {
   const fetchProductHistory = async (itemId) => {
     try {
       const params = new URLSearchParams();
-      if (range.startDate) params.append('startDate', range.startDate);
-      if (range.endDate) params.append('endDate', range.endDate);
+      // Use date only (time removed from UI)
+      if (productHistoryFilter.date) {
+        params.append('startDate', productHistoryFilter.date);
+      }
       if (itemId) params.append('itemId', itemId);
       const res = await fetch(`${API}/reports/product-history?${params.toString()}`);
       const text = await res.text();
@@ -118,6 +122,19 @@ export default function Reports() {
     }
   };
 
+  const fetchProfitSummaryDetail = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (range.startDate) params.append('startDate', range.startDate);
+      if (range.endDate) params.append('endDate', range.endDate);
+      const res = await fetch(`${API}/reports/profit-summary?${params.toString()}`);
+      const json = await res.json();
+      setProfitSummaryDetail(json || { invoices: [], expenses: 0, totals: {} });
+    } catch (err) {
+      console.error('fetchProfitSummaryDetail', err);
+    }
+  };
+
   const handleExpenseSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -142,24 +159,204 @@ export default function Reports() {
     <div className="p-4">
       <h2 className="text-2xl font-semibold mb-4">Reports</h2>
 
+      {/* Profit Summary Report with Invoice Details and Expenses */}
       <section className="mb-6 bg-white p-4 rounded shadow">
-        <h3 className="font-medium mb-2">Profit Summary (optional date range)</h3>
+        <h3 className="font-medium mb-2">Profit Summary Report (with Expenses)</h3>
         <div className="flex gap-2 items-center mb-3">
           <input type="date" value={range.startDate} onChange={e => setRange(r => ({...r, startDate: e.target.value}))} className="border px-2 py-1" />
           <input type="date" value={range.endDate} onChange={e => setRange(r => ({...r, endDate: e.target.value}))} className="border px-2 py-1" />
-          <button onClick={async () => { await fetchProfit(); await fetchExpenses(); }} className="bg-indigo-600 text-white px-3 py-1 rounded">Apply</button>
-          <button onClick={() => { setRange({startDate:'', endDate:''}); setProfitSummary(null); fetchReports(); fetchExpenses(); }} className="ml-2 px-3 py-1 border rounded">Reset</button>
+          <button onClick={fetchProfitSummaryDetail} className="bg-blue-600 text-white px-3 py-1 rounded">Load Report</button>
         </div>
-        <div>
-          <button onClick={fetchProfit} className="px-3 py-1 bg-green-600 text-white rounded mr-2">Load Profit</button>
-          {profitSummary && (
-            <div className="mt-3">
-              <div>Total Purchases: <strong>{profitSummary.total_purchases}</strong></div>
-              <div>Total Sales: <strong>{profitSummary.total_sales}</strong></div>
-              <div>Profit: <strong>{profitSummary.profit}</strong></div>
-            </div>
-          )}
-        </div>
+        
+        {profitSummaryDetail && (
+          <>
+            {/* Before Start Day Summary */}
+            {range.startDate && profitSummaryDetail.before_start_day && (
+              <div className="mb-6 p-4 bg-yellow-50 rounded border border-yellow-200">
+                <h4 className="font-semibold mb-3 text-yellow-900">Before Start Day (Before {range.startDate})</h4>
+                <div className="grid grid-cols-3 gap-4 mb-3">
+                  <div>
+                    <div className="text-sm text-gray-600">Total Invoices</div>
+                    <div className="font-bold text-lg">{profitSummaryDetail.before_start_day.totals.total_invoices || 0}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Total Sales</div>
+                    <div className="font-bold text-lg">{(profitSummaryDetail.before_start_day.totals.total_sales || 0).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Total Cost</div>
+                    <div className="font-bold text-lg">{(profitSummaryDetail.before_start_day.totals.total_cost || 0).toFixed(2)}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-sm text-gray-600">Total Profit</div>
+                    <div className="font-bold text-lg text-green-600">{(profitSummaryDetail.before_start_day.totals.total_profit || 0).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Total Expenses</div>
+                    <div className="font-bold text-lg text-red-600">{(profitSummaryDetail.before_start_day.totals.total_expenses || 0).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600 font-semibold">Net Profit</div>
+                    <div className={`font-bold text-lg ${(profitSummaryDetail.before_start_day.totals.net_profit || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      {(profitSummaryDetail.before_start_day.totals.net_profit || 0).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Selected Period Summary */}
+            {profitSummaryDetail.selected_period && (
+              <div className="mb-6 p-4 bg-blue-50 rounded border border-blue-200">
+                <h4 className="font-semibold mb-3 text-blue-900">
+                  Selected Period {range.startDate || range.endDate ? `(${range.startDate ? range.startDate : 'Start'} to ${range.endDate ? range.endDate : 'End'})` : ''}
+                </h4>
+                <div className="grid grid-cols-3 gap-4 mb-3">
+                  <div>
+                    <div className="text-sm text-gray-600">Total Invoices</div>
+                    <div className="font-bold text-lg">{profitSummaryDetail.selected_period.totals.total_invoices || 0}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Total Sales</div>
+                    <div className="font-bold text-lg">{(profitSummaryDetail.selected_period.totals.total_sales || 0).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Total Cost</div>
+                    <div className="font-bold text-lg">{(profitSummaryDetail.selected_period.totals.total_cost || 0).toFixed(2)}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-sm text-gray-600">Total Profit (from invoices)</div>
+                    <div className="font-bold text-lg text-green-600">{(profitSummaryDetail.selected_period.totals.total_profit || 0).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Total Expenses</div>
+                    <div className="font-bold text-lg text-red-600">{(profitSummaryDetail.selected_period.totals.total_expenses || 0).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600 font-semibold">Net Profit (Profit - Expenses)</div>
+                    <div className={`font-bold text-lg ${(profitSummaryDetail.selected_period.totals.net_profit || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      {(profitSummaryDetail.selected_period.totals.net_profit || 0).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Overall Summary */}
+            {profitSummaryDetail.overall && (
+              <div className="mb-6 p-4 bg-green-50 rounded border border-green-200">
+                <h4 className="font-semibold mb-3 text-green-900">Overall Summary (All Time)</h4>
+                <div className="grid grid-cols-3 gap-4 mb-3">
+                  <div>
+                    <div className="text-sm text-gray-600">Total Invoices</div>
+                    <div className="font-bold text-lg">{profitSummaryDetail.overall.totals.total_invoices || 0}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Total Sales</div>
+                    <div className="font-bold text-lg">{(profitSummaryDetail.overall.totals.total_sales || 0).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Total Cost</div>
+                    <div className="font-bold text-lg">{(profitSummaryDetail.overall.totals.total_cost || 0).toFixed(2)}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-sm text-gray-600">Total Profit</div>
+                    <div className="font-bold text-lg text-green-600">{(profitSummaryDetail.overall.totals.total_profit || 0).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Total Expenses</div>
+                    <div className="font-bold text-lg text-red-600">{(profitSummaryDetail.overall.totals.total_expenses || 0).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600 font-semibold">Net Profit</div>
+                    <div className={`font-bold text-lg ${(profitSummaryDetail.overall.totals.net_profit || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      {(profitSummaryDetail.overall.totals.net_profit || 0).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Invoice Details Table for Selected Period */}
+            {profitSummaryDetail.selected_period && profitSummaryDetail.selected_period.invoices && profitSummaryDetail.selected_period.invoices.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-semibold mb-3">Invoice Details (Selected Period)</h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="text-left border-b bg-gray-100">
+                        <th className="px-2 py-1">Invoice #</th>
+                        <th className="px-2 py-1">Date</th>
+                        <th className="px-2 py-1">Customer</th>
+                        <th className="px-2 py-1">Total Sales</th>
+                        <th className="px-2 py-1">Cost</th>
+                        <th className="px-2 py-1">Offers</th>
+                        <th className="px-2 py-1">Profit</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profitSummaryDetail.selected_period.invoices.map((inv, idx) => (
+                        <tr key={idx} className="border-b hover:bg-gray-50">
+                          <td className="px-2 py-1 font-semibold">{inv.invoice_number}</td>
+                          <td className="px-2 py-1">{new Date(inv.date).toLocaleDateString()}</td>
+                          <td className="px-2 py-1">{inv.customer_name || 'Walk-in'}</td>
+                          <td className="px-2 py-1">{inv.total_amount.toFixed(2)}</td>
+                          <td className="px-2 py-1">{inv.cost_total.toFixed(2)}</td>
+                          <td className="px-2 py-1">{inv.offer_amount.toFixed(2)}</td>
+                          <td className="px-2 py-1 font-semibold" style={{ color: inv.profit >= 0 ? '#16a34a' : '#dc2626' }}>
+                            {inv.profit.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Expense Details Table for Selected Period */}
+            {profitSummaryDetail.selected_period && profitSummaryDetail.selected_period.expenses && profitSummaryDetail.selected_period.expenses.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-semibold mb-3">Expense Details (Selected Period)</h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="text-left border-b bg-gray-100">
+                        <th className="px-2 py-1">Date</th>
+                        <th className="px-2 py-1">Title</th>
+                        <th className="px-2 py-1">Category</th>
+                        <th className="px-2 py-1">Amount</th>
+                        <th className="px-2 py-1">Note</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profitSummaryDetail.selected_period.expenses.map((exp, idx) => (
+                        <tr key={idx} className="border-b hover:bg-gray-50">
+                          <td className="px-2 py-1">{new Date(exp.created_at).toLocaleDateString()}</td>
+                          <td className="px-2 py-1 font-semibold">{exp.title}</td>
+                          <td className="px-2 py-1">{exp.category || '-'}</td>
+                          <td className="px-2 py-1 font-semibold text-red-600">{exp.amount.toFixed(2)}</td>
+                          <td className="px-2 py-1 text-gray-600">{exp.note || '-'}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 border-b bg-gray-100 font-semibold">
+                        <td colSpan="3" className="px-2 py-1 text-right">Total Expenses:</td>
+                        <td className="px-2 py-1 text-red-600">{(profitSummaryDetail.selected_period.expenses_total || 0).toFixed(2)}</td>
+                        <td className="px-2 py-1"></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </section>
 
       {/* Product History Modal */}
@@ -174,7 +371,9 @@ export default function Reports() {
               <div className="mb-3 text-sm text-gray-600">Avg Cost: {historyData.avg_cost}</div>
               {historyError && (<div className="mb-3 text-sm text-red-600">Error: {historyError}</div>)}
               {typeof historyData.starting_qty !== 'undefined' && (
-                <div className="mb-3 text-sm text-gray-600">Starting Qty{range.startDate ? ` (as of ${range.startDate})` : ''}: {historyData.starting_qty}</div>
+                <div className="mb-3 text-sm text-gray-600">
+                  Starting Qty{productHistoryFilter.date ? ` (as of ${productHistoryFilter.date})` : ''}: <strong>{historyData.starting_qty}</strong>
+                </div>
               )}
               <div className="overflow-x-auto">
                 {(!historyData.data || historyData.data.length === 0) && !historyError && (
@@ -212,7 +411,8 @@ export default function Reports() {
 
       <section className="mb-6 bg-white p-4 rounded shadow">
         <h3 className="font-medium mb-2">Product Report</h3>
-        <div className="flex gap-2 mb-3 items-center">
+        <div className="flex gap-2 items-center flex-wrap mb-3">
+          <input type="date" value={productHistoryFilter.date} onChange={e => setProductHistoryFilter(f => ({...f, date: e.target.value}))} className="border px-2 py-1" placeholder="Start Date" />
           <select value={productFilter.itemId} onChange={e => {
             const id = e.target.value;
             const item = inventory.find(it => String(it.id) === String(id));
@@ -225,53 +425,7 @@ export default function Reports() {
               <option key={i.id} value={i.id}>{i.name} (ID: {i.id})</option>
             ))}
           </select>
-          <button onClick={fetchReports} className="bg-indigo-600 text-white px-3 py-1 rounded">Apply Product Filter</button>
-          <button onClick={() => { if (productFilter.itemId) { fetchProductHistory(productFilter.itemId); } }} disabled={!productFilter.itemId} className="ml-2 px-3 py-1 border rounded">View Selected Product History</button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="text-left border-b">
-                <th className="px-2 py-1">Product</th>
-                <th className="px-2 py-1">Sold Qty</th>
-                <th className="px-2 py-1">Sold Amount</th>
-                <th className="px-2 py-1">Purchased Qty</th>
-                <th className="px-2 py-1">Purchased Amount</th>
-                <th className="px-2 py-1">Avg Cost</th>
-                <th className="px-2 py-1">Profit</th>
-                <th className="px-2 py-1">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map(p => (
-                <tr key={`${p.item_id}-${p.item_name}`} className="border-b">
-                  <td className="px-2 py-1">{p.item_name}</td>
-                  <td className="px-2 py-1">{p.sold_qty}</td>
-                  <td className="px-2 py-1">{p.sold_amount}</td>
-                  <td className="px-2 py-1">{p.purchased_qty}</td>
-                  <td className="px-2 py-1">{p.purchased_amount}</td>
-                  <td className="px-2 py-1">{p.avg_cost}</td>
-                  <td className="px-2 py-1">{p.profit}</td>
-                  <td className="px-2 py-1">
-                    <button onClick={() => { setSelectedProduct({ id: p.item_id, name: p.item_name }); fetchProductHistory(p.item_id); }} className="px-2 py-1 border rounded text-sm">View History</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            {totals && (
-              <tfoot>
-                <tr className="font-medium">
-                  <td className="px-2 py-1">Totals</td>
-                  <td className="px-2 py-1">{totals.sold_qty}</td>
-                  <td className="px-2 py-1">{totals.sold_amount}</td>
-                  <td className="px-2 py-1">{totals.purchased_qty}</td>
-                  <td className="px-2 py-1">{totals.purchased_amount}</td>
-                  <td className="px-2 py-1">-</td>
-                  <td className="px-2 py-1">{totals.profit}</td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
+          <button onClick={() => { if (productFilter.itemId) { fetchProductHistory(productFilter.itemId); setHistoryModalOpen(true); } }} disabled={!productFilter.itemId} className="ml-2 px-3 py-1 bg-indigo-600 text-white rounded">Product History</button>
         </div>
       </section>
 
