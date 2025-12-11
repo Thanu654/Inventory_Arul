@@ -1,0 +1,347 @@
+/* Home.css - Keep only these styles */
+
+/* Loading States */
+.electro-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+}
+
+.electro-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* No Data State */
+.electro-no-data {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.electro-empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+/* Container */
+.electro-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+
+/* Services Section */
+.electro-services {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+  margin: 3rem 0;
+}
+
+.electro-service-item {
+  text-align: center;
+  padding: 1.5rem;
+  border-radius: 10px;
+  background: #f8f9fa;
+  transition: transform 0.3s;
+}
+
+.electro-service-item:hover {
+  transform: translateY(-5px);
+}
+
+.electro-service-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Category Section */
+.electro-category-section {
+  margin: 3rem 0;
+}
+
+.electro-category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.electro-category-title {
+  font-size: 1.8rem;
+  color: #333;
+}
+
+.electro-view-all {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* Products Grid */
+.electro-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+}
+
+/* Product Card */
+.electro-product-card {
+  background: white;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.electro-product-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+}
+
+.electro-product-image-container {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+}
+
+.electro-product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s;
+}
+
+.electro-product-card:hover .electro-product-image {
+  transform: scale(1.05);
+}
+
+.electro-product-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: #ff4757;
+  color: white;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.electro-product-info {
+  padding: 1.5rem;
+}
+
+.electro-product-category {
+  color: #667eea;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.electro-product-name {
+  font-size: 1.2rem;
+  margin: 0.5rem 0;
+  color: #333;
+}
+
+.electro-product-description {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+  line-height: 1.5;
+}
+
+.electro-price-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.electro-price {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.electro-original-price {
+  font-size: 1rem;
+  color: #999;
+  text-decoration: line-through;
+}
+
+.electro-product-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1rem 0;
+}
+
+.electro-stock-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.electro-stock.in-stock {
+  color: #23d160;
+  font-weight: 600;
+}
+
+.electro-stock.out-stock {
+  color: #ff4757;
+  font-weight: 600;
+}
+
+.electro-quantity {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.electro-rating {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.electro-star {
+  color: #ddd;
+  font-size: 1rem;
+}
+
+.electro-star.filled {
+  color: #ffc107;
+}
+
+.electro-product-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.electro-add-to-cart {
+  flex: 1;
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  transition: background 0.3s;
+}
+
+.electro-add-to-cart:hover {
+  background: #5a67d8;
+}
+
+.electro-wishlist {
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  color: #ff4757;
+  width: 50px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.3s;
+}
+
+.electro-wishlist:hover {
+  background: #ff4757;
+  color: white;
+}
+
+/* Newsletter */
+.electro-newsletter {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-align: center;
+  padding: 3rem 2rem;
+  border-radius: 20px;
+  margin: 4rem 0;
+}
+
+.electro-newsletter-content h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.electro-newsletter-form {
+  display: flex;
+  max-width: 500px;
+  margin: 2rem auto 0;
+  gap: 1rem;
+}
+
+.electro-newsletter-input {
+  flex: 1;
+  padding: 1rem;
+  border: none;
+  border-radius: 50px;
+  font-size: 1rem;
+}
+
+.electro-newsletter-button {
+  background: white;
+  color: #667eea;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 50px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Empty Category */
+.electro-empty-category {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem;
+  color: #666;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .electro-container {
+    padding: 0 1rem;
+  }
+
+  .electro-services {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .electro-products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .electro-newsletter-form {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .electro-services {
+    grid-template-columns: 1fr;
+  }
+
+  .electro-products-grid {
+    grid-template-columns: 1fr;
+  }
+}
