@@ -9,6 +9,7 @@ import authRoutes from './routes/authRoutes.js';
 import bcrypt from 'bcryptjs';
 import staffRoutes from "./routes/staffRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import homeRoutes from "./routes/homeRoutes.js";
 
 dotenv.config();
 
@@ -48,6 +49,8 @@ app.use("/api", inventoryRoutes);
 app.use("/api", staffRoutes);
 app.use("/api", reportRoutes);
 
+// user side
+app.use("/api", homeRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
