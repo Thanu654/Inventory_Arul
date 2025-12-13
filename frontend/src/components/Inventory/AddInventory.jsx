@@ -165,15 +165,20 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm font-medium text-red-700">{error}</p>
+          </div>
         </div>
       )}
 
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="name" className="block text-sm font-semibold text-gray-900 mb-2">
           Item Name *
         </label>
         <input
@@ -182,14 +187,14 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
           name="name"
           value={formData.name}
           onChange={handleChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
           placeholder="Enter item name"
           required
         />
       </div>
 
       <div>
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="description" className="block text-sm font-semibold text-gray-900 mb-2">
           Description
         </label>
         <textarea
@@ -198,134 +203,169 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
           value={formData.description}
           onChange={handleChange}
           rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 resize-none"
           placeholder="Enter item description"
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        
-         
-          
-
-        <div>
-          <label htmlFor="costPrice" className="block text-sm font-medium text-gray-700 mb-1">
-            Cost Price
+        <div className='hidden'>
+          <label htmlFor="quantity" className="block text-sm font-semibold text-gray-900 mb-2">
+            Quantity
           </label>
           <input
             type="number"
-            id="costPrice"
-            name="costPrice"
-            value={formData.costPrice}
+            id="quantity"
+            name="quantity"
+            value={formData.quantity}
             onChange={handleChange}
             min="0"
-            step="0.01"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            placeholder="0.00"
+            step="1"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+            placeholder="0"
+            defaultValue={0}
+            readOnly
           />
         </div>
 
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="sellingPrice" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="costPrice" className="block text-sm font-semibold text-gray-900 mb-2">
+            Cost Price
+          </label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">$</span>
+            <input
+              type="number"
+              id="costPrice"
+              name="costPrice"
+              value={formData.costPrice}
+              onChange={handleChange}
+              min="0"
+              step="0.01"
+              className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="sellingPrice" className="block text-sm font-semibold text-gray-900 mb-2">
             Selling Price *
           </label>
-          <input
-            type="number"
-            id="sellingPrice"
-            name="sellingPrice"
-            value={formData.sellingPrice}
-            onChange={handleChange}
-            min="0"
-            step="0.01"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            placeholder="0.00"
-            required
-          />
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">$</span>
+            <input
+              type="number"
+              id="sellingPrice"
+              name="sellingPrice"
+              value={formData.sellingPrice}
+              onChange={handleChange}
+              min="0"
+              step="0.01"
+              className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+              placeholder="0.00"
+              required
+            />
+          </div>
         </div>
       </div>
 
       <div>
-        <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="image" className="block text-sm font-semibold text-gray-900 mb-2">
           Product Image
         </label>
         <div className="space-y-3">
-          <input
-            type="file"
-            id="image"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          />
+          <div className="relative">
+            <input
+              type="file"
+              id="image"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer"
+            />
+          </div>
           {imagePreview && (
-            <div className="relative inline-block">
+            <div className="relative inline-block group">
               <img
                 src={imagePreview}
                 alt="Preview"
-                className="w-32 h-32 object-cover rounded-lg border border-gray-300"
+                className="w-40 h-40 object-cover rounded-xl border-2 border-gray-200 shadow-md"
               />
               <button
                 type="button"
                 onClick={removeImage}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg transition duration-200 hover:scale-110"
               >
-                ×
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
           )}
-          <p className="text-sm text-gray-500">
+          <p className="text-xs text-gray-500 flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             Supported formats: JPEG, PNG, GIF, WebP (Max 5MB)
           </p>
         </div>
       </div>
 
-      <div>
-        <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-          Category
-        </label>
-        <select
-          id="category"
-          name="category"
-          value={formData.category}
-          onChange={handleChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="">Select a category</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.name}>
-              {category.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Subcategory select (shows only when a category is selected) */}
-      {formData.category && (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="subcategory" className="block text-sm font-medium text-gray-700 mb-1">
-            Subcategory
+          <label htmlFor="category" className="block text-sm font-semibold text-gray-900 mb-2">
+            Category
           </label>
           <select
-            id="subcategory"
-            name="subcategoryId"
-            value={formData.subcategoryId}
+            id="category"
+            name="category"
+            value={formData.category}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 appearance-none bg-white cursor-pointer"
           >
-            <option value="">Select a subcategory (optional)</option>
-            {subcategories
-              .filter(sc => String(sc.category_id) === String(categories.find(c => c.name === formData.category)?.id))
-              .map((sc) => (
-                <option key={sc.id} value={sc.id}>{sc.name}</option>
-              ))}
+            <option value="">Select a category</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.name}>
+                {category.name}
+              </option>
+            ))}
           </select>
         </div>
-      )}
 
-      <div className="flex justify-end space-x-3 pt-4">
+        {/* Subcategory select (shows only when a category is selected AND has subcategories) */}
+        {formData.category && (() => {
+          const selectedCategoryId = categories.find(c => c.name === formData.category)?.id;
+          const availableSubcategories = subcategories.filter(sc => String(sc.category_id) === String(selectedCategoryId));
+          
+          if (availableSubcategories.length === 0) return null;
+          
+          return (
+            <div>
+              <label htmlFor="subcategory" className="block text-sm font-semibold text-gray-900 mb-2">
+                Subcategory
+              </label>
+              <select
+                id="subcategory"
+                name="subcategoryId"
+                value={formData.subcategoryId}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 appearance-none bg-white cursor-pointer"
+              >
+                <option value="">Select a subcategory (optional)</option>
+                {availableSubcategories.map((sc) => (
+                  <option key={sc.id} value={sc.id}>{sc.name}</option>
+                ))}
+              </select>
+            </div>
+          );
+        })()}
+      </div>
+
+      <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="px-6 py-3 border-2 border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition duration-200"
           disabled={loading}
         >
           Cancel
@@ -333,9 +373,24 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl shadow-lg hover:shadow-xl text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 flex items-center gap-2"
         >
-          {loading ? (isEditMode ? 'Updating...' : 'Adding...') : (isEditMode ? 'Update Item' : 'Add Item')}
+          {loading ? (
+            <>
+              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {isEditMode ? 'Updating...' : 'Adding...'}
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isEditMode ? "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" : "M12 6v6m0 0v6m0-6h6m-6 0H6"} />
+              </svg>
+              {isEditMode ? 'Update Item' : 'Add Item'}
+            </>
+          )}
         </button>
       </div>
     </form>

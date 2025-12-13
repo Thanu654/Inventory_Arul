@@ -52,261 +52,183 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Dashboard</h1>
-        <p className="text-gray-600">Welcome to your Inventory Management System</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Quick Stats Cards */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 7h-4V5l-2-2h-4L8 5v2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Items</p>
-              <p className="text-2xl font-semibold text-gray-900">{dashboardData?.stats.totalItems || 0}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-green-100 text-green-600">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Inventory Value</p>
-              <p className="text-2xl font-semibold text-gray-900">${dashboardData?.stats.totalValue || '0.00'}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M6 2L3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6l-3-4H6zM3 6h18M8 10v4M16 10v4" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Low Stock Items</p>
-              <p className="text-2xl font-semibold text-gray-900">{dashboardData?.stats.lowStock || 0}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-purple-100 text-purple-600">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M12.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM16 11l2 2 4-4" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Sales</p>
-              <p className="text-2xl font-semibold text-gray-900">{dashboardData?.stats.totalSales || 0}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-indigo-100 text-indigo-600">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2z" />
-                <path d="M8 5v4M16 5v4" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Revenue</p>
-              <p className="text-2xl font-semibold text-gray-900">${dashboardData?.stats.totalRevenue || '0.00'}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-pink-100 text-pink-600">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Categories</p>
-              <p className="text-2xl font-semibold text-gray-900">{dashboardData?.stats.totalCategories || 0}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Low Stock Alert */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Low Stock Alert</h2>
-            <div className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-sm">
-              {dashboardData?.lowStockItems?.length || 0} items
-            </div>
-          </div>
-          {dashboardData?.lowStockItems?.length > 0 ? (
-            <div className="space-y-3">
-              {dashboardData.lowStockItems.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                  <span className="font-medium text-gray-800">{item.name}</span>
-                  <span className="bg-red-200 text-red-800 px-2 py-1 rounded-full text-sm">
-                    {item.quantity} left
-                  </span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900 px-4 py-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+          {[
+            { label: 'Total Items', value: dashboardData?.stats.totalItems || 0, icon: '📦', color: 'blue' },
+            { label: 'Inventory Value', value: `${dashboardData?.stats.totalValue || '0.00'} /=`, icon: '💰', color: 'green' },
+            { label: 'Low Stock', value: dashboardData?.stats.lowStock || 0, icon: '⚠️', color: 'yellow' },
+            { label: 'Total Sales', value: dashboardData?.stats.totalSales || 0, icon: '📈', color: 'purple' },
+            { label: 'Revenue', value: `${dashboardData?.stats.totalRevenue || '0.00'} /=`, icon: '💵', color: 'indigo' },
+            { label: 'Categories', value: dashboardData?.stats.totalCategories || 0, icon: '📂', color: 'pink' },
+          ].map((stat, idx) => (
+            <div
+              key={idx}
+              className={`group relative overflow-hidden rounded-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg shadow-lg border border-white/20 p-6 transform transition-all duration-300 hover:scale-105 hover:shadow-2xl`}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{stat.label}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
                 </div>
-              ))}
-              <button
-                onClick={() => navigate('/notifications')}
-                className="w-full mt-3 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg transition-colors"
-              >
-                View All Notifications
-              </button>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <svg className="mx-auto h-12 w-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <p>All items are well stocked!</p>
-            </div>
-          )}
-        </div>
-
-        {/* Top Selling Products */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Top Selling Products</h2>
-          {dashboardData?.topProducts?.length > 0 ? (
-            <div className="space-y-3">
-              {dashboardData.topProducts.map((product, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                  <div className="flex items-center">
-                    <span className="bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mr-3">
-                      #{index + 1}
-                    </span>
-                    <span className="font-medium text-gray-800">{product.name}</span>
-                  </div>
-                  <span className="bg-green-200 text-green-800 px-2 py-1 rounded-full text-sm">
-                    {product.totalSold} sold
-                  </span>
-                </div>
-              ))}
-              <button
-                onClick={() => navigate('/billing')}
-                className="w-full mt-3 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg transition-colors"
-              >
-                Go to Billing
-              </button>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <svg className="mx-auto h-12 w-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
-              <p>No sales data available yet</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Monthly Sales Chart */}
-      {dashboardData?.monthlySales?.length > 0 && (
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Monthly Sales Trend</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {dashboardData.monthlySales.slice(0).reverse().map((month, index) => (
-              <div key={index} className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-sm font-medium text-gray-600 mb-1">
-                  {new Date(month.month + '-01').toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    year: '2-digit' 
-                  })}
-                </div>
-                <div className="text-lg font-bold text-blue-600">{month.salesCount}</div>
-                <div className="text-xs text-gray-500">sales</div>
-                <div className="text-sm font-semibold text-green-600 mt-1">
-                  ${parseFloat(month.revenue || 0).toFixed(2)}
+                <div className={`text-3xl p-3 rounded-full bg-${stat.color}-100 text-${stat.color}-600 dark:bg-${stat.color}-900/50`}>
+                  {stat.icon}
                 </div>
               </div>
+              <div className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-transparent via-current to-transparent opacity-30 w-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500" />
+            </div>
+          ))}
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+
+          {/* Low Stock Alert */}
+          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 p-6 transform transition-all hover:shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center">
+                <span className="mr-2">Low Stock Alert</span>
+                <span className="text-2xl">⚠️</span>
+              </h2>
+              <span className="bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 px-3 py-1 rounded-full text-sm font-semibold">
+                {dashboardData?.lowStockItems?.length || 0} items
+              </span>
+            </div>
+
+            {dashboardData?.lowStockItems?.length > 0 ? (
+              <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                {dashboardData.lowStockItems.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-red-50/70 dark:bg-red-900/30 rounded-xl border border-red-200/50 dark:border-red-800/50 backdrop-blur-sm"
+                  >
+                    <span className="font-medium text-gray-800 dark:text-gray-200">{item.name}</span>
+                    <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                      {item.quantity} left
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <div className="text-6xl mb-3">✅</div>
+                <p className="font-medium">All items are well stocked!</p>
+              </div>
+            )}
+
+            <button
+              onClick={() => navigate('/dashboard/notifications')}
+              className="w-full mt-5 bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold py-3 rounded-xl shadow-md hover:shadow-lg transform transition-all hover:scale-105 active:scale-95"
+            >
+              View All Notifications →
+            </button>
+          </div>
+
+          {/* Top Selling Products */}
+          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 p-6 transform transition-all hover:shadow-2xl">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-5 flex items-center">
+              <span className="mr-2">Top Selling Products</span>
+              <span className="text-2xl">🏆</span>
+            </h2>
+
+            {dashboardData?.topProducts?.length > 0 ? (
+              <div className="space-y-3">
+                {dashboardData.topProducts.map((product, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-green-50/70 dark:bg-green-900/30 rounded-xl border border-green-200/50 dark:border-green-800/50 backdrop-blur-sm"
+                  >
+                    <div className="flex items-center">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 text-white flex items-center justify-center text-sm font-bold mr-3 shadow-md">
+                        #{index + 1}
+                      </div>
+                      <span className="font-medium text-gray-800 dark:text-gray-200">{product.name}</span>
+                    </div>
+                    <span className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                      {product.totalSold} sold
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <div className="text-6xl mb-3">📊</div>
+                <p className="font-medium">No sales data available yet</p>
+              </div>
+            )}
+
+            <button
+              onClick={() => navigate('/dashboard/transactions')}
+              className="w-full mt-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold py-3 rounded-xl shadow-md hover:shadow-lg transform transition-all hover:scale-105 active:scale-95"
+            >
+              Go to transactions →
+            </button>
+          </div>
+        </div>
+
+        {/* Monthly Sales Trend */}
+        {dashboardData?.monthlySales?.length > 0 && (
+          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 p-6 mb-10">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6 flex items-center">
+              <span className="mr-2">Monthly Sales Trend</span>
+              <span className="text-2xl">📅</span>
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {dashboardData.monthlySales.slice(0).reverse().map((month, index) => (
+                <div
+                  key={index}
+                  className="text-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/50 dark:to-indigo-900/50 rounded-xl border border-blue-200/50 dark:border-blue-700/50 backdrop-blur-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                    {new Date(month.month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
+                  </div>
+                  <div className="text-2xl font-bold text-blue-700 dark:text-blue-300 mt-1">
+                    {month.salesCount}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">sales</div>
+                  <div className="mt-2 text-sm font-bold text-green-600 dark:text-green-400">
+                    ${parseFloat(month.revenue || 0).toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Quick Actions */}
+        <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 p-6">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6 flex items-center">
+            <span className="mr-2">Quick Actions</span>
+            <span className="text-2xl">⚡</span>
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              { label: 'Manage Inventory', icon: '📦', route: '/dashboard/inventory', color: 'blue' },
+              { label: 'Process Sale', icon: '🛒', route: '/dashboard/billing', color: 'green' },
+              { label: 'Notifications', icon: '🔔', route: '/dashboard/notifications', color: 'yellow' },
+              { label: 'Manage Offers', icon: '⭐', route: '/dashboard/offers', color: 'purple' },
+            ].map((action, idx) => (
+              <button
+                key={idx}
+                onClick={() => navigate(action.route)}
+                className={`group flex flex-col items-center p-5 rounded-2xl bg-gradient-to-br from-${action.color}-50 to-${action.color}-100 dark:from-${action.color}-900/50 dark:to-${action.color}-800/50 border border-${action.color}-200/50 dark:border-${action.color}-700/50 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-xl active:scale-95`}
+              >
+                <div className={`text-4xl mb-3 group-hover:animate-pulse`}>{action.icon}</div>
+                <h3 className="font-bold text-gray-800 dark:text-white">{action.label}</h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  {action.route === '/inventory' && 'View & edit items'}
+                  {action.route === '/billing' && 'Create new bill'}
+                  {action.route === '/notifications' && 'Check alerts'}
+                  {action.route === '/offers' && 'Create promotions'}
+                </p>
+              </button>
             ))}
           </div>
         </div>
-      )}
 
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <button
-            onClick={() => navigate('/inventory')}
-            className="flex items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-          >
-            <div className="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 7h-4V5l-2-2h-4L8 5v2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z" />
-              </svg>
-            </div>
-            <div className="text-left">
-              <h3 className="font-semibold text-gray-800">Manage Inventory</h3>
-              <p className="text-sm text-gray-600">View and manage items</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate('/billing')}
-            className="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-          >
-            <div className="p-3 rounded-full bg-green-100 text-green-600 mr-4">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
-            </div>
-            <div className="text-left">
-              <h3 className="font-semibold text-gray-800">Process Sale</h3>
-              <p className="text-sm text-gray-600">Create new bill</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate('/notifications')}
-            className="flex items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors"
-          >
-            <div className="p-3 rounded-full bg-yellow-100 text-yellow-600 mr-4">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-            </div>
-            <div className="text-left">
-              <h3 className="font-semibold text-gray-800">Notifications</h3>
-              <p className="text-sm text-gray-600">Check alerts</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => navigate('/offers')}
-            className="flex items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
-          >
-            <div className="p-3 rounded-full bg-purple-100 text-purple-600 mr-4">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-            </div>
-            <div className="text-left">
-              <h3 className="font-semibold text-gray-800">Manage Offers</h3>
-              <p className="text-sm text-gray-600">Create promotions</p>
-            </div>
-          </button>
-        </div>
       </div>
     </div>
   );

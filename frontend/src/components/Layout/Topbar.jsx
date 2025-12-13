@@ -55,14 +55,26 @@ const Topbar = ({ onLogout }) => {
       case '/':
       case '/dashboard':
         return 'Dashboard';
-      case '/inventory':
-        return 'Inventory Management';
-      case '/billing':
+      case '/dashboard/inventory':
+        return 'Inventory';
+      case '/dashboard/billing':
         return 'Billing & Invoicing';
-      case '/offers':
+      case '/dashboard/offers':
         return 'Offers & Promotions';
-      case '/report':
+      case '/dashboard/reports':
         return 'Reports & Analytics';
+      case '/dashboard/delivery':
+        return 'Delivery';
+      case '/dashboard/transactions':
+        return 'Transactions';
+      case '/dashboard/purchases':
+        return 'Purchases';
+      case '/dashboard/notifications':
+        return 'Notifications';
+      case '/dashboard/add-staff':
+        return 'Add Staff';
+      case '/dashboard/staff':
+        return 'Staff Management';
       default:
         return 'Dashboard';
     }
@@ -70,10 +82,10 @@ const Topbar = ({ onLogout }) => {
 
 
   return (
-    <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm">
+    <div className="h-16 bg-blue-600 lg:bg-white border-b border-blue-700 lg:border-gray-200 flex items-center justify-between px-6 shadow-lg lg:shadow-sm">
       {/* Left side: Page Title */}
-      <div className="flex-1">
-        <h1 className="text-2xl font-bold text-gray-800">{getPageTitle()}</h1>
+      <div className="flex-1 pl-10 lg:pl-0">
+        <h1 className="text-2xl lg:text-3xl font-bold text-white lg:text-gray-800">{getPageTitle()}</h1>
       </div>
 
       {/* Right side: Icons and User profile */}
@@ -83,10 +95,10 @@ const Topbar = ({ onLogout }) => {
         <div className="relative">
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex items-center space-x-3 p-2 rounded-lg hover:bg-blue-700 lg:hover:bg-gray-100 transition-colors"
           >
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
-              <span className="text-white font-semibold"><UserIcon/></span>
+            <div className="w-10 h-10 rounded-full bg-white lg:bg-gradient-to-r lg:from-blue-500 lg:to-blue-600 flex items-center justify-center">
+              <span className="text-blue-600 lg:text-white font-semibold"><UserIcon/></span>
             </div>
             <div className="text-left hidden md:block">
               <p className="font-medium text-gray-900">{role}</p> 
@@ -109,16 +121,6 @@ const Topbar = ({ onLogout }) => {
                       <p className="font-medium text-gray-900">{name}</p>
                       <p className="text-xs text-gray-500">{email}</p>
                 </div>
-                
-                <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                  My Profile
-                </a>
-                <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                  Account Settings
-                </a>
-                <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                  Help & Support
-                </a>
                 
                 <div className="border-t border-gray-100">
                   <button

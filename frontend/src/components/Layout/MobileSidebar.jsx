@@ -1,15 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-const SideBar = () => {
+const MobileSidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const role = localStorage.getItem("role"); // "admin" or "staff"
-  const permissions = JSON.parse(localStorage.getItem("permissions") || "[]"); // staff permissions/pages
+  const role = localStorage.getItem("role");
+  const permissions = JSON.parse(localStorage.getItem("permissions") || "[]");
 
-  // Determine active tab
   const getActiveTab = () => {
     const path = location.pathname;
     if (path.includes('inventory')) return 'inventory';
@@ -99,19 +97,6 @@ const SideBar = () => {
     </svg>
   );
 
-  const ChevronLeftIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-  );
-
-  const ChevronRightIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
-
-  // MENU ITEMS
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon, path: '/dashboard' },
     { id: 'billing', label: 'Billing', icon: BillingIcon, path: '/dashboard/billing' },
@@ -125,17 +110,29 @@ const SideBar = () => {
   ];
 
   const adminMenus = [
-    { id: 'view-staff', label: 'Staff Management', icon: DashboardIcon, path: '/dashboard/staff' },
+    { id: 'add-staff', label: 'Add Staffs', icon: DashboardIcon, path: '/dashboard/add-staff' },
+    { id: 'view-staff', label: 'View Staffs', icon: DashboardIcon, path: '/dashboard/staff' },
   ];
 
-  // CLICK HANDLER
-  const handleTabClick = (item) => navigate(item.path);
+  const handleTabClick = (item) => {
+    navigate(item.path);
+    onClose();
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <div className={`h-screen flex flex-col bg-gradient-to-b from-gray-900 to-gray-950 text-gray-200 transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'} shadow-xl relative`}>
-      {/* HEADER */}
-      <div className="p-4 border-b border-gray-800 flex justify-between items-center">
-        {!isCollapsed && (
+    <>
+      {/* Overlay */}
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+        onClick={onClose}
+      />
+
+      {/* Mobile Sidebar */}
+      <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-gray-950 text-gray-200 z-50 lg:hidden transform transition-transform duration-300 ease-in-out flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-800 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
               <DashboardIcon active />
@@ -145,60 +142,62 @@ const SideBar = () => {
               <p className="text-xs text-gray-400">Inventory System</p>
             </div>
           </div>
-        )}
-        <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 rounded-lg hover:bg-gray-800 transition-colors">
-          {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-        </button>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-2 overflow-y-auto">
+          <ul className="space-y-1">
+            {menuItems.map((item) => {
+              if (role === 'staff' && !permissions.includes(item.id)) return null;
+
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <li key={item.id}>
+                  <button
+                    onClick={() => handleTabClick(item)}
+                    className={`w-full flex items-center rounded-lg px-3 py-3 transition-all duration-200 ${
+                      isActive ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-gray-800 hover:text-white'
+                    }`}
+                  >
+                    <Icon active={isActive} />
+                    <span className="ml-3 font-medium">{item.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+
+            {role === 'admin' && adminMenus.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <li key={item.id}>
+                  <button
+                    onClick={() => handleTabClick(item)}
+                    className={`w-full flex items-center rounded-lg px-3 py-3 transition-all duration-200 ${
+                      isActive ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-gray-800 hover:text-white'
+                    }`}
+                  >
+                    <Icon active={isActive} />
+                    <span className="ml-3 font-medium">{item.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
       </div>
-
-      {/* NAV */}
-      <nav className="flex-1 p-2 overflow-y-auto">
-        <ul className="space-y-1">
-          {menuItems.map((item) => {
-            // Staff restriction
-            if (role === 'staff' && !permissions.includes(item.id)) return null;
-
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <li key={item.id}>
-                <button
-                  onClick={() => handleTabClick(item)}
-                  className={`w-full flex items-center rounded-lg px-3 py-3 transition-all duration-200 ${
-                    isActive ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-gray-800 hover:text-white'
-                  } ${isCollapsed ? 'justify-center' : ''}`}
-                  title={isCollapsed ? item.label : ''}
-                >
-                  <Icon active={isActive} />
-                  {!isCollapsed && <span className="ml-3 font-medium">{item.label}</span>}
-                </button>
-              </li>
-            );
-          })}
-
-          {/* ADMIN ONLY */}
-          {role === 'admin' && adminMenus.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <li key={item.id}>
-                <button
-                  onClick={() => handleTabClick(item)}
-                  className={`w-full flex items-center rounded-lg px-3 py-3 transition-all duration-200 ${
-                    isActive ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-gray-800 hover:text-white'
-                  } ${isCollapsed ? 'justify-center' : ''}`}
-                  title={isCollapsed ? item.label : ''}
-                >
-                  <Icon active={isActive} />
-                  {!isCollapsed && <span className="ml-3 font-medium">{item.label}</span>}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    </div>
+    </>
   );
 };
 
-export default SideBar;
+export default MobileSidebar;

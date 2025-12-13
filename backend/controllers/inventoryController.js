@@ -1204,16 +1204,15 @@ export const getDashboardSummary = async (req, res) => {
       LIMIT 5
     `);
     
-    // Get top selling products (from purchase_items)
+    // Get top selling products (from sale_items)
     const [topProducts] = await db.query(`
       SELECT 
-        i.name, 
-        SUM(pi.quantity) as totalSold 
-      FROM purchase_items pi
-      JOIN items i ON pi.item_id = i.id
-      GROUP BY pi.item_id, i.name
+        si.item_name as name, 
+        SUM(si.quantity) as totalSold 
+      FROM sale_items si
+      GROUP BY si.item_id, si.item_name
       ORDER BY totalSold DESC
-      LIMIT 5
+      LIMIT 3
     `);
 
     // Get monthly sales trend (last 6 months)

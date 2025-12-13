@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { Tag, Plus, Search, X, Eye, Edit2, Trash2, Package, DollarSign, TrendingDown, AlertCircle } from 'lucide-react';
 
 const Offers = () => {
   const [offers, setOffers] = useState([]);
@@ -340,33 +341,25 @@ const Offers = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Offers Management</h1>
-            <p className="text-gray-600 mt-1">Create and manage special offers and discounts</p>
-          </div>
-          <button
-            onClick={() => {
-              resetForm();
-              setIsAddModalOpen(true);
-            }}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Create New Offer
-          </button>
-        </div>
-
         {/* Offers List */}
-        <div className="bg-white rounded-xl shadow-sm border">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Available Offers</h2>
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200">
+          <div className="p-6 flex flex-row items-center justify-between border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Package className="w-5 h-5 text-purple-600" />
+              Available Offers
+            </h2>
+            <button
+              onClick={() => {
+                resetForm();
+                setIsAddModalOpen(true);
+              }}
+              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl hover:from-purple-600 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 font-medium"
+            >
+              <Plus className="w-5 h-5" />
+              Create New Offer
+            </button>
           </div>
           
           <div className="p-6">
@@ -376,11 +369,9 @@ const Offers = () => {
                 <span className="ml-3 text-gray-600">Loading offers...</span>
               </div>
             ) : offers.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
-                    <path d="M20 12c0-1.1-.9-2-2-2V7c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v3c-1.1 0-2 .9-2 2v5c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-5z" />
-                  </svg>
+              <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl">
+                <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                  <Tag className="w-10 h-10 text-purple-500" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Offers Yet</h3>
                 <p className="text-gray-600">Create your first offer to get started.</p>
@@ -388,11 +379,12 @@ const Offers = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {offers.map((offer) => (
-                  <div key={offer.id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                  <div key={offer.id} className="bg-white border border-gray-200 rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+                    <div className="h-2 bg-gradient-to-r from-purple-500 to-pink-600"></div>
                     <div className="p-6">
                       <div className="flex justify-between items-start mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900">{offer.offer_type}</h3>
-                        <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                        <h3 className="text-lg font-semibold text-gray-900 capitalize">{offer.offer_type}</h3>
+                        <span className="bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md">
                           {calculateDiscountPercent(offer.real_total, offer.offer_total)}% OFF
                         </span>
                       </div>
@@ -401,39 +393,45 @@ const Offers = () => {
                         <p className="text-gray-600 text-sm mb-4">{offer.description}</p>
                       )}
                       
-                      <div className="space-y-2 mb-4">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Original Price:</span>
-                          <span className="line-through text-gray-500">${(parseFloat(offer.real_total) || 0).toFixed(2)}</span>
+                      <div className="space-y-3 mb-6">
+                        <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm text-gray-600 font-medium">Original Price:</span>
+                          <span className="line-through text-gray-500 font-semibold">${(parseFloat(offer.real_total) || 0).toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Offer Price:</span>
-                          <span className="font-semibold text-green-600">${(parseFloat(offer.offer_total) || 0).toFixed(2)}</span>
+                        <div className="flex justify-between items-center p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg">
+                          <span className="text-sm text-gray-700 font-medium">Offer Price:</span>
+                          <span className="font-bold text-green-600 text-lg">${(parseFloat(offer.offer_total) || 0).toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">You Save:</span>
-                          <span className="font-semibold text-red-600">${calculateSavings(offer.real_total, offer.offer_total).toFixed(2)}</span>
+                        <div className="flex justify-between items-center p-3 bg-gradient-to-r from-red-50 to-orange-50 rounded-lg">
+                          <span className="text-sm text-gray-700 font-medium flex items-center gap-1">
+                            <TrendingDown className="w-4 h-4" />
+                            You Save:
+                          </span>
+                          <span className="font-bold text-red-600 text-lg">${calculateSavings(offer.real_total, offer.offer_total).toFixed(2)}</span>
                         </div>
                       </div>
                       
-                      <div className="flex justify-between space-x-2">
+                      <div className="grid grid-cols-3 gap-2">
                         <button
                           onClick={() => openViewModal(offer)}
-                          className="flex-1 px-3 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-colors text-sm"
+                          className="px-3 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow hover:shadow-md text-sm font-medium flex items-center justify-center gap-1"
                         >
-                          View
+                          <Eye className="w-4 h-4" />
+                          <span className="hidden sm:inline">View</span>
                         </button>
                         <button
                           onClick={() => openEditModal(offer)}
-                          className="flex-1 px-3 py-2 text-green-600 border border-green-600 rounded-md hover:bg-green-50 transition-colors text-sm"
+                          className="px-3 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition-all shadow hover:shadow-md text-sm font-medium flex items-center justify-center gap-1"
                         >
-                          Edit
+                          <Edit2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">Edit</span>
                         </button>
                         <button
                           onClick={() => handleDelete(offer.id)}
-                          className="flex-1 px-3 py-2 text-red-600 border border-red-600 rounded-md hover:bg-red-50 transition-colors text-sm"
+                          className="px-3 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow hover:shadow-md text-sm font-medium flex items-center justify-center gap-1"
                         >
-                          Delete
+                          <Trash2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">Delete</span>
                         </button>
                       </div>
                     </div>
@@ -446,16 +444,128 @@ const Offers = () => {
 
         {/* Add/Edit Offer Modal */}
         {(isAddModalOpen || isEditModalOpen) && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-xl font-semibold text-gray-900">
+          <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-500 to-pink-600">
+                <h3 className="text-xl font-semibold text-white flex items-center gap-3">
+                  {isAddModalOpen ? <Plus className="w-6 h-6" /> : <Edit2 className="w-6 h-6" />}
                   {isAddModalOpen ? 'Create New Offer' : 'Edit Offer'}
                 </h3>
               </div>
               
               <form onSubmit={isAddModalOpen ? handleSubmit : handleEdit} className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                
+                {/* Product Selection */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-4">
+                    Add Products to Offer
+                  </label>
+                  
+                  {/* Search Input */}
+                  <div className="mb-4">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-4 py-3 pl-11 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                        placeholder="Search products by name or category..."
+                      />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="w-5 h-5 text-gray-400" />
+                      </div>
+                      {searchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchTerm('')}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-4 overflow-x-auto border-2 border-gray-200 rounded-xl p-4 bg-gradient-to-br from-gray-50 to-white" style={{scrollbarWidth: 'thin'}}>
+                    {items
+                      .filter(item => {
+                        if (!searchTerm) return true;
+                        const search = searchTerm.toLowerCase();
+                        return item.name.toLowerCase().includes(search) || 
+                               (item.category && item.category.toLowerCase().includes(search));
+                      })
+                      .map(item => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => addProductToOffer(item)}
+                        className="flex-shrink-0 w-52 p-4 bg-white border-2 border-gray-200 rounded-xl hover:border-purple-400 hover:shadow-lg transition-all duration-200 text-left group"
+                      >
+                        <div className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">{item.name}</div>
+                        <div className="text-sm text-green-600 font-semibold mt-2">${(parseFloat(item.price) || 0).toFixed(2)}</div>
+                        <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                          <Package className="w-3 h-3" />
+                          Stock: {item.quantity || 0}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Selected Products */}
+                {formData.selectedProducts.length > 0 && (
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                      <Package className="w-5 h-5 text-purple-600" />
+                      Selected Products ({formData.selectedProducts.length})
+                    </label>
+                    <div className="border-2 border-gray-200 rounded-xl overflow-hidden shadow-md">
+                      <table className="w-full">
+                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Product</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Price</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Quantity</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {formData.selectedProducts.map(product => (
+                            <tr key={product.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">{product.name || product.product_name}</td>
+                              <td className="px-4 py-3 text-sm font-medium text-green-600 whitespace-nowrap">${(parseFloat(product.price || product.product_price) || 0).toFixed(2)}</td>
+                              <td className="px-4 py-3">
+                                <input
+                                  type="text"
+                                  value={product.quantity}
+                                  onChange={(e) => updateProductQuantity(product.id, e.target.value)}
+                                  className="w-20 px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-medium text-center"
+                                />
+                                <div className="text-xs text-gray-500 mt-1">Max: {product.maxQuantity}</div>
+                              </td>
+                              <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">
+                                ${((parseFloat(product.price) || 0) * (parseInt(product.quantity) || 0)).toFixed(2)}
+                              </td>
+                              <td className="px-4 py-3">
+                                <button
+                                  type="button"
+                                  onClick={() => removeProductFromOffer(product.id)}
+                                  className="text-red-600 hover:text-red-800 font-medium flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Offer Type *
@@ -503,117 +613,6 @@ const Offers = () => {
                   </div>
                 </div>
 
-                {/* Product Selection */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-4">
-                    Add Products to Offer
-                  </label>
-                  
-                  {/* Search Input */}
-                  <div className="mb-4">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Search products by name or category..."
-                      />
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
-                          <circle cx="11" cy="11" r="8" />
-                          <path d="M21 21l-4.35-4.35" />
-                        </svg>
-                      </div>
-                      {searchTerm && (
-                        <button
-                          type="button"
-                          onClick={() => setSearchTerm('')}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 hover:text-gray-600">
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-4 overflow-x-auto border border-gray-200 rounded-lg p-4" style={{scrollbarWidth: 'thin'}}>
-                    {items
-                      .filter(item => {
-                        if (!searchTerm) return true;
-                        const search = searchTerm.toLowerCase();
-                        return item.name.toLowerCase().includes(search) || 
-                               (item.category && item.category.toLowerCase().includes(search));
-                      })
-                      .map(item => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => addProductToOffer(item)}
-                        className="flex-shrink-0 w-48 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors text-left"
-                      >
-                        <div className="font-medium text-gray-900">{item.name}</div>
-                        <div className="text-sm text-gray-600">${(parseFloat(item.price) || 0).toFixed(2)}</div>
-                        <div className="text-xs text-gray-500">Stock: {item.quantity || 0}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Selected Products */}
-                {formData.selectedProducts.length > 0 && (
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-4">
-                      Selected Products
-                    </label>
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {formData.selectedProducts.map(product => (
-                            <tr key={product.id}>
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900">{product.name || product.product_name}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900">${(parseFloat(product.price || product.product_price) || 0).toFixed(2)}</td>
-                              <td className="px-4 py-3">
-                                <input
-                                  type="text"
-                                  value={product.quantity}
-                                  onChange={(e) => updateProductQuantity(product.id, e.target.value)}
-                                  className="w-20 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                                />
-                                <div className="text-xs text-gray-500">Max: {product.maxQuantity}</div>
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-900">
-                                ${((parseFloat(product.price) || 0) * (parseInt(product.quantity) || 0)).toFixed(2)}
-                              </td>
-                              <td className="px-4 py-3">
-                                <button
-                                  type="button"
-                                  onClick={() => removeProductFromOffer(product.id)}
-                                  className="text-red-600 hover:text-red-800"
-                                >
-                                  Remove
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
                 {/* Pricing */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div>
@@ -658,7 +657,7 @@ const Offers = () => {
                   </div>
                 </div>
                 
-                <div className="flex justify-end space-x-3">
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                   <button
                     type="button"
                     onClick={() => {
@@ -667,13 +666,13 @@ const Offers = () => {
                       resetForm();
                       setSelectedOffer(null);
                     }}
-                    className="px-6 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors font-medium"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl hover:from-purple-600 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl font-medium"
                   >
                     {isAddModalOpen ? 'Create Offer' : 'Update Offer'}
                   </button>
@@ -685,10 +684,13 @@ const Offers = () => {
 
         {/* View Offer Modal */}
         {isViewModalOpen && selectedOffer && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-xl font-semibold text-gray-900">Offer Details</h3>
+          <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-cyan-600">
+                <h3 className="text-xl font-semibold text-white flex items-center gap-3">
+                  <Eye className="w-6 h-6" />
+                  Offer Details
+                </h3>
               </div>
               
               <div className="p-6">
@@ -744,18 +746,21 @@ const Offers = () => {
                   )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Original Price</label>
-                    <p className="text-xl font-bold text-gray-900 line-through">${(parseFloat(selectedOffer.real_total) || 0).toFixed(2)}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                  <div className="text-center p-5 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200">
+                    <label className="block text-sm font-semibold text-gray-600 mb-2">Original Price</label>
+                    <p className="text-2xl font-bold text-gray-900 line-through">${(parseFloat(selectedOffer.real_total) || 0).toFixed(2)}</p>
                   </div>
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Offer Price</label>
-                    <p className="text-xl font-bold text-green-600">${(parseFloat(selectedOffer.offer_total) || 0).toFixed(2)}</p>
+                  <div className="text-center p-5 bg-gradient-to-br from-green-50 to-emerald-100 rounded-xl border-2 border-green-200">
+                    <label className="block text-sm font-semibold text-green-700 mb-2">Offer Price</label>
+                    <p className="text-2xl font-bold text-green-600">${(parseFloat(selectedOffer.offer_total) || 0).toFixed(2)}</p>
                   </div>
-                  <div className="text-center p-4 bg-red-50 rounded-lg">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">You Save</label>
-                    <p className="text-xl font-bold text-red-600">
+                  <div className="text-center p-5 bg-gradient-to-br from-red-50 to-orange-100 rounded-xl border-2 border-red-200">
+                    <label className="block text-sm font-semibold text-red-700 mb-2 flex items-center justify-center gap-1">
+                      <TrendingDown className="w-4 h-4" />
+                      You Save
+                    </label>
+                    <p className="text-2xl font-bold text-red-600">
                       ${calculateSavings(selectedOffer.real_total, selectedOffer.offer_total).toFixed(2)}
                     </p>
                   </div>
@@ -767,7 +772,7 @@ const Offers = () => {
                       setIsViewModalOpen(false);
                       setSelectedOffer(null);
                     }}
-                    className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    className="px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all shadow-lg font-medium"
                   >
                     Close
                   </button>
