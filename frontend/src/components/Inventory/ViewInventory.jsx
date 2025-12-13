@@ -675,12 +675,23 @@ const ViewInventory = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {item.image ? (
-                              <img
-                                src={`${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}${item.image}`}
-                                alt={item.name}
-                                className="w-12 h-12 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-400 transition-all duration-200 hover:scale-105"
-                                onClick={() => openImageModal(`${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}${item.image}`, item.name)}
-                              />
+<img
+                            src={
+                              item.image?.startsWith("http")
+                                ? item.image
+                                : `${import.meta.env.VITE_API_BASE_URL.replace("/api", "")}${item.image}`
+                            }
+                            alt={item.name}
+                            className="w-12 h-12 object-cover rounded-lg border border-gray-300 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() =>
+                              openImageModal(
+                                item.image?.startsWith("http")
+                                  ? item.image
+                                  : `${import.meta.env.VITE_API_BASE_URL.replace("/api", "")}${item.image}`,
+                                item.name
+                              )
+                            }
+                          />
                             ) : (
                               <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg border-2 border-gray-200 flex items-center justify-center">
                                 <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
