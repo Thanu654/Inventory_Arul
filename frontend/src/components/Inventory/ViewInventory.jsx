@@ -580,7 +580,7 @@ const ViewInventory = () => {
                   <div>
                     <p className="text-amber-100 text-sm font-medium">Low Stock</p>
                     <p className="text-3xl font-bold mt-1">
-                      {items.filter(item => item.quantity > 0 && item.quantity <= 10).length}
+                      {items.filter(item => item.quantity > 0 && item.quantity <= (item.min_stock ?? 10)).length}
                     </p>
                   </div>
                   <div className="bg-amber-400/20 p-3 rounded-xl">
@@ -623,9 +623,12 @@ const ViewInventory = () => {
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Name
                       </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Quantity
-                      </th>
+                              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Quantity
+                              </th>
+                              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Min Stock
+                              </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Price
                       </th>
@@ -649,7 +652,7 @@ const ViewInventory = () => {
                       if (currentItems.length === 0) {
                         return (
                           <tr>
-                            <td colSpan="7" className="px-6 py-16 text-center">
+                            <td colSpan="8" className="px-6 py-16 text-center">
                               <div className="flex flex-col items-center justify-center">
                                 <svg className="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -705,11 +708,16 @@ const ViewInventory = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                              item.quantity > 10 ? 'bg-green-100 text-green-800' : 
+                              item.quantity > (item.min_stock ?? 10) ? 'bg-green-100 text-green-800' : 
                               item.quantity > 0 ? 'bg-yellow-100 text-yellow-800' : 
                               'bg-red-100 text-red-800'
                             }`}>
                               {item.quantity} units
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              {item.min_stock ?? 0}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -1264,12 +1272,17 @@ const ViewInventory = () => {
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                     <label className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Quantity</label>
                     <p className={`mt-1 text-lg font-bold ${
-                      viewItem.quantity > 10 ? 'text-green-600' : 
+                      viewItem.quantity > (viewItem.min_stock ?? 10) ? 'text-green-600' : 
                       viewItem.quantity > 0 ? 'text-yellow-600' : 
                       'text-red-600'
                     }`}>
                       {viewItem.quantity} units
                     </p>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Min Stock</label>
+                    <p className="mt-1 text-lg font-bold text-gray-900">{viewItem.min_stock ?? 0} units</p>
                   </div>
 
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">

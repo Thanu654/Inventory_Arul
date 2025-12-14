@@ -5,6 +5,7 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
     name: '',
     description: '',
         quantity: '', // Make quantity optional
+    minStock: '',
     costPrice: '',
     sellingPrice: '',
     subcategoryId: '',
@@ -22,6 +23,7 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
         name: initialData.name || '',
         description: initialData.description || '',
         quantity: initialData.quantity?.toString() || '',
+        minStock: (initialData.min_stock ?? initialData.minStock ?? '')?.toString() || '',
         costPrice: (initialData.cost_price ?? initialData.costPrice ?? '')?.toString() || '',
         sellingPrice: (initialData.price ?? initialData.sellingPrice ?? '')?.toString() || '',
         subcategoryId: initialData.subcategory_id ? String(initialData.subcategory_id) : (initialData.subcategoryId ? String(initialData.subcategoryId) : ''),
@@ -92,6 +94,10 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
           setError('Prices must be positive numbers');
           return;
         }
+        if (formData.minStock !== '' && parseInt(formData.minStock) < 0) {
+          setError('Min Stock must be a positive number');
+          return;
+        }
         if (formData.quantity !== '' && formData.quantity !== null && formData.quantity !== undefined && parseInt(formData.quantity) < 0) {
           setError('Quantity must be a positive number');
           return;
@@ -115,6 +121,10 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
             if (formData.quantity !== '' && formData.quantity !== null && formData.quantity !== undefined) {
               formDataToSend.append('quantity', parseInt(formData.quantity));
             }
+      // append min stock if provided
+      if (formData.minStock !== '' && formData.minStock !== null && formData.minStock !== undefined) {
+        formDataToSend.append('min_stock', parseInt(formData.minStock));
+      }
       // Append selling price (keeps existing backend `price` field)
       formDataToSend.append('price', parseFloat(formData.sellingPrice));
       // Append cost price (backend may ignore if not supported yet)
@@ -150,6 +160,7 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
           name: '',
           description: '',
           quantity: '',
+          minStock: '',
           costPrice: '',
           sellingPrice: '',
           category: ''
@@ -190,6 +201,23 @@ const AddInventory = ({ onAdd, onCancel, isEditMode = false, initialData = null,
           className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
           placeholder="Enter item name"
           required
+        />
+      </div>
+      
+      <div>
+        <label htmlFor="minStock" className="block text-sm font-semibold text-gray-900 mb-2">
+          Min Stock
+        </label>
+        <input
+          type="number"
+          id="minStock"
+          name="minStock"
+          value={formData.minStock}
+          onChange={handleChange}
+          min="0"
+          step="1"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+          placeholder="0"
         />
       </div>
 

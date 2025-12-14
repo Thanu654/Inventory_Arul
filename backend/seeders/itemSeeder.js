@@ -111,11 +111,17 @@ export const seedItems = async () => {
   ];
 
   for (const item of items) {
+    // Ensure items array includes min_stock at index 3 (after quantity)
+    const itemValues = Array.from(item);
+    if (itemValues.length === 8) {
+      itemValues.splice(3, 0, 0); // insert default min_stock = 0
+    }
+
     await db.query(
       `INSERT INTO items
-      (name, description, quantity, price, cost_price, category, image, created_at, updated_at, subcategory_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)`,
-      item
+      (name, description, quantity, min_stock, price, cost_price, category, image, created_at, updated_at, subcategory_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?)`,
+      itemValues
     );
   }
 

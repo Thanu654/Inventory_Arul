@@ -21,8 +21,11 @@ const Offers = () => {
     description: '',
     selectedProducts: [],
     realTotal: 0,
-    offerTotal: 0
+    offerTotal: 0,
+    costTotal: 0
   });
+
+  const [lastOfferSummary, setLastOfferSummary] = useState({ show: false, totalCost: 0, profit: 0 });
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -68,7 +71,8 @@ const Offers = () => {
       description: '',
       selectedProducts: [],
       realTotal: 0,
-      offerTotal: 0
+      offerTotal: 0,
+      costTotal: 0
     });
     setSearchTerm('');
   };
@@ -84,6 +88,7 @@ const Offers = () => {
       id: item.id,
       name: item.name,
       price: parseFloat(item.price) || 0,
+      costPrice: parseFloat(item.cost_price ?? item.costPrice) || 0,
       quantity: 1,
       maxQuantity: parseInt(item.quantity) || 0
     };
@@ -117,6 +122,8 @@ const Offers = () => {
     calculateTotals(updatedProducts, formData.offerTotal);
   };
 
+  
+
   const removeProductFromOffer = (productId) => {
     const updatedProducts = formData.selectedProducts.filter(p => p.id !== productId);
     setFormData(prev => ({ ...prev, selectedProducts: updatedProducts }));
@@ -128,6 +135,11 @@ const Offers = () => {
       const price = parseFloat(product.price) || 0;
       const quantity = parseInt(product.quantity) || 0;
       return sum + (price * quantity);
+    }, 0);
+    const costTotal = products.reduce((sum, product) => {
+      const cost = parseFloat(product.costPrice ?? product.cost_price) || 0;
+      const quantity = parseInt(product.quantity) || 0;
+      return sum + (cost * quantity);
     }, 0);
     setFormData(prev => {
       let derivedOfferTotal = offerTotal || prev.offerTotal;
@@ -141,7 +153,7 @@ const Offers = () => {
         derivedOfferTotal = +(realTotal - appliedDiscount).toFixed(2);
       }
 
-      return { ...prev, realTotal, offerTotal: derivedOfferTotal };
+      return { ...prev, realTotal, offerTotal: derivedOfferTotal, costTotal };
     });
   };
 
@@ -190,7 +202,15 @@ const Offers = () => {
       const offerData = {
         offerType: formData.offerType,
         description: formData.description,
-        products: formData.selectedProducts,
+        products: formData.selectedProducts.map(p => ({
+          product_id: p.id,
+          product_name: p.name,
+          product_price: p.price,
+          cost_price: p.costPrice ?? p.cost_price ?? 0,
+          quantity: p.quantity,
+          total_price: +((parseFloat(p.price) || 0) * (parseInt(p.quantity) || 0)).toFixed(2),
+          cost_total: +(((parseFloat(p.costPrice ?? p.cost_price) || 0) * (parseInt(p.quantity) || 0))).toFixed(2)
+        })),
         realTotal: formData.realTotal,
         offerTotal: formData.offerTotal
       };
@@ -204,6 +224,10 @@ const Offers = () => {
       if (response.ok) {
         toast.success('Offer created successfully!');
         setIsAddModalOpen(false);
+        // calculate profit and show summary on page (do not store)
+        const totalCost = formData.costTotal || 0;
+        const profit = +(((parseFloat(formData.offerTotal) || 0) - totalCost)).toFixed(2);
+        setLastOfferSummary({ show: true, totalCost, profit });
         resetForm();
         fetchOffers();
       } else {
@@ -222,7 +246,15 @@ const Offers = () => {
       const offerData = {
         offerType: formData.offerType,
         description: formData.description,
-        products: formData.selectedProducts,
+        products: formData.selectedProducts.map(p => ({
+          product_id: p.id,
+          product_name: p.name,
+          product_price: p.price,
+          cost_price: p.costPrice ?? p.cost_price ?? 0,
+          quantity: p.quantity,
+          total_price: +((parseFloat(p.price) || 0) * (parseInt(p.quantity) || 0)).toFixed(2),
+          cost_total: +(((parseFloat(p.costPrice ?? p.cost_price) || 0) * (parseInt(p.quantity) || 0))).toFixed(2)
+        })),
         realTotal: formData.realTotal,
         offerTotal: formData.offerTotal
       };
@@ -299,11 +331,17 @@ const Offers = () => {
             id: product.product_id || product.id,
             name: product.product_name || product.name,
             price: product.product_price || product.price,
+            costPrice: product.cost_price ?? product.costPrice ?? 0,
             quantity: product.quantity,
             maxQuantity: product.maxQuantity || 999
           })),
           realTotal: realTotalNum,
-          offerTotal: offerTotalNum
+          offerTotal: offerTotalNum,
+          costTotal: (data.products || []).reduce((sum, product) => {
+            const cost = parseFloat(product.cost_price ?? product.costPrice) || 0;
+            const qty = parseInt(product.quantity) || 0;
+            return sum + cost * qty;
+          }, 0)
         });
         setIsEditModalOpen(true);
       }
@@ -442,6 +480,20 @@ const Offers = () => {
           </div>
         </div>
 
+        {/* Last offer summary (non-persistent) */}
+        {lastOfferSummary.show && (
+          <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-xl shadow-sm flex items-center justify-between">
+            <div>
+              <div className="text-sm text-gray-600">Last Offer Summary (not stored)</div>
+              <div className="mt-1 text-lg font-semibold text-gray-900">Total Cost: ${(+lastOfferSummary.totalCost).toFixed(2)}</div>
+              <div className="text-green-600 font-bold">Company Profit: ${(+lastOfferSummary.profit).toFixed(2)}</div>
+            </div>
+            <div>
+              <button onClick={() => setLastOfferSummary({ show: false, totalCost: 0, profit: 0 })} className="px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">Dismiss</button>
+            </div>
+          </div>
+        )}
+
         {/* Add/Edit Offer Modal */}
         {(isAddModalOpen || isEditModalOpen) && (
           <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -525,8 +577,10 @@ const Offers = () => {
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Product</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Price</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cost Price</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Quantity</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cost Total</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
                           </tr>
                         </thead>
@@ -538,25 +592,36 @@ const Offers = () => {
                               <td className="px-4 py-3">
                                 <input
                                   type="text"
-                                  value={product.quantity}
-                                  onChange={(e) => updateProductQuantity(product.id, e.target.value)}
-                                  className="w-20 px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-medium text-center"
+                                  readOnly
+                                  value={`$${(parseFloat(product.costPrice ?? product.cost_price) || 0).toFixed(2)}`}
+                                  className="w-28 px-3 py-2 border-2 border-gray-200 rounded-lg bg-gray-100 font-medium text-center"
                                 />
-                                <div className="text-xs text-gray-500 mt-1">Max: {product.maxQuantity}</div>
                               </td>
-                              <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">
-                                ${((parseFloat(product.price) || 0) * (parseInt(product.quantity) || 0)).toFixed(2)}
-                              </td>
-                              <td className="px-4 py-3">
-                                <button
-                                  type="button"
-                                  onClick={() => removeProductFromOffer(product.id)}
-                                  className="text-red-600 hover:text-red-800 font-medium flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded transition-colors"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  Remove
-                                </button>
-                              </td>
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="text"
+                                    value={product.quantity}
+                                    onChange={(e) => updateProductQuantity(product.id, e.target.value)}
+                                    className="w-20 px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-medium text-center"
+                                  />
+                                  <div className="text-xs text-gray-500 mt-1">Max: {product.maxQuantity}</div>
+                                </td>
+                                <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">
+                                  ${((parseFloat(product.price) || 0) * (parseInt(product.quantity) || 0)).toFixed(2)}
+                                </td>
+                                <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
+                                  ${( (parseFloat(product.costPrice ?? product.cost_price) || 0) * (parseInt(product.quantity) || 0) ).toFixed(2)}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeProductFromOffer(product.id)}
+                                    className="text-red-600 hover:text-red-800 font-medium flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    Remove
+                                  </button>
+                                </td>
                             </tr>
                           ))}
                         </tbody>
@@ -651,6 +716,27 @@ const Offers = () => {
                     <input
                       type="text"
                       value={`$${Math.max(0, (parseFloat(formData.realTotal) || 0) - (parseFloat(formData.offerTotal) || 0)).toFixed(2)}`}
+                      readOnly
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Selling Price After Offer</label>
+                    <input
+                      type="text"
+                      value={`$${(parseFloat(formData.offerTotal) || 0).toFixed(2)}`}
+                      readOnly
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Total Cost Price</label>
+                    <input
+                      type="text"
+                      value={`$${(parseFloat(formData.costTotal) || 0).toFixed(2)}`}
                       readOnly
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100"
                     />

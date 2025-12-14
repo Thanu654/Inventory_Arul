@@ -20,6 +20,8 @@ export const addItem = async (req, res) => {
     const { name, description, quantity, price, category } = req.body;
     // cost_price may be sent as 'cost_price' (from FormData) or 'costPrice'
     const cost_price = req.body.cost_price ?? req.body.costPrice ?? null;
+    const min_stock_raw = req.body.min_stock ?? req.body.minStock ?? null;
+    const subcategory_raw = req.body.subcategory_id ?? req.body.subcategoryId ?? null;
     const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
     
     if (!name || price === undefined) {
@@ -29,13 +31,20 @@ export const addItem = async (req, res) => {
     // quantity is optional from frontend; default to 0 if missing or invalid
     let qtyNum = parseInt(quantity);
     if (isNaN(qtyNum)) qtyNum = 0;
+    let minStockNum = parseInt(min_stock_raw);
+    if (isNaN(minStockNum) || minStockNum < 0) minStockNum = 0;
+    let subcategoryIdNum = null;
+    if (subcategory_raw !== null && subcategory_raw !== undefined && String(subcategory_raw).trim() !== '') {
+      const tmp = parseInt(subcategory_raw);
+      subcategoryIdNum = isNaN(tmp) ? null : tmp;
+    }
 
     const [result] = await db.query(
-      "INSERT INTO items (name, description, quantity, price, cost_price, category, image) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [name, description || null, qtyNum, parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, imagePath]
+      "INSERT INTO items (name, description, quantity, min_stock, price, cost_price, category, image, subcategory_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [name, description || null, qtyNum, minStockNum, parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, imagePath, subcategoryIdNum]
     );
 
-    const insertedItem = { id: result.insertId, name, description, quantity: parseInt(quantity), price: parseFloat(price), cost_price: cost_price !== null ? parseFloat(cost_price) : null, category, image: imagePath };
+    const insertedItem = { id: result.insertId, name, description, quantity: qtyNum, min_stock: minStockNum, price: parseFloat(price), cost_price: cost_price !== null ? parseFloat(cost_price) : null, category, image: imagePath, subcategory_id: subcategoryIdNum };
 
     // If initial quantity provided (positive), record an opening inventory transaction for audit/history
     try {
@@ -64,14 +73,15 @@ export const updateItem = async (req, res) => {
     const { id } = req.params;
     const { name, description, quantity, price, category } = req.body;
     const cost_price = req.body.cost_price ?? req.body.costPrice ?? null;
+    const min_stock_raw = req.body.min_stock ?? req.body.minStock ?? null;
     const newImagePath = req.file ? `/uploads/${req.file.filename}` : null;
     
     if (!name || quantity === undefined || price === undefined) {
       return res.status(400).json({ message: "Name, quantity, and price are required" });
     }
 
-    // Get current item to check for existing image and current quantity
-    const [currentItem] = await db.query("SELECT image, quantity FROM items WHERE id = ?", [parseInt(id)]);
+    // Get current item to check for existing image, current quantity and subcategory
+    const [currentItem] = await db.query("SELECT image, quantity, subcategory_id FROM items WHERE id = ?", [parseInt(id)]);
     
     if (currentItem.length === 0) {
       return res.status(404).json({ message: "Item not found" });
@@ -82,14 +92,40 @@ export const updateItem = async (req, res) => {
       deleteImageFile(currentItem[0].image);
     }
 
+    // parse min_stock
+    let minStockNum = parseInt(min_stock_raw);
+    if (isNaN(minStockNum) || minStockNum < 0) minStockNum = 0;
+    // parse subcategory (undefined if not provided)
+    const subcategory_raw = req.body.subcategory_id ?? req.body.subcategoryId;
+    let subcategoryProvided = subcategory_raw !== undefined;
+    let subcategoryIdNum = null;
+    if (subcategoryProvided) {
+      if (subcategory_raw === null || String(subcategory_raw).trim() === '') {
+        subcategoryIdNum = null;
+      } else {
+        const tmp = parseInt(subcategory_raw);
+        subcategoryIdNum = isNaN(tmp) ? null : tmp;
+      }
+    }
+
     // Update query with or without image
     let updateQuery, updateParams;
     if (newImagePath) {
-      updateQuery = "UPDATE items SET name = ?, description = ?, quantity = ?, price = ?, cost_price = ?, category = ?, image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-      updateParams = [name, description || null, parseInt(quantity), parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, newImagePath, parseInt(id)];
+      if (subcategoryProvided) {
+        updateQuery = "UPDATE items SET name = ?, description = ?, quantity = ?, min_stock = ?, price = ?, cost_price = ?, category = ?, subcategory_id = ?, image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        updateParams = [name, description || null, parseInt(quantity), minStockNum, parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, subcategoryIdNum, newImagePath, parseInt(id)];
+      } else {
+        updateQuery = "UPDATE items SET name = ?, description = ?, quantity = ?, min_stock = ?, price = ?, cost_price = ?, category = ?, image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        updateParams = [name, description || null, parseInt(quantity), minStockNum, parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, newImagePath, parseInt(id)];
+      }
     } else {
-      updateQuery = "UPDATE items SET name = ?, description = ?, quantity = ?, price = ?, cost_price = ?, category = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-      updateParams = [name, description || null, parseInt(quantity), parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, parseInt(id)];
+      if (subcategoryProvided) {
+        updateQuery = "UPDATE items SET name = ?, description = ?, quantity = ?, min_stock = ?, price = ?, cost_price = ?, category = ?, subcategory_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        updateParams = [name, description || null, parseInt(quantity), minStockNum, parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, subcategoryIdNum, parseInt(id)];
+      } else {
+        updateQuery = "UPDATE items SET name = ?, description = ?, quantity = ?, min_stock = ?, price = ?, cost_price = ?, category = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        updateParams = [name, description || null, parseInt(quantity), minStockNum, parseFloat(price), cost_price !== null ? parseFloat(cost_price) : null, category || null, parseInt(id)];
+      }
     }
 
     const [result] = await db.query(updateQuery, updateParams);
@@ -119,9 +155,11 @@ export const updateItem = async (req, res) => {
         name, 
         description, 
         quantity: parseInt(quantity), 
+        min_stock: minStockNum,
         price: parseFloat(price), 
         cost_price: cost_price !== null ? parseFloat(cost_price) : null,
         category,
+        subcategory_id: subcategoryProvided ? subcategoryIdNum : currentItem[0].subcategory_id,
         image: newImagePath || currentItem[0].image
       }
     });
@@ -1064,19 +1102,48 @@ export const createOffer = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
     
-    // Insert offer
+    // Compute cost_total from products (if provided)
+    let computedCostTotal = 0;
+    const normalizedProducts = products.map(product => {
+      const productId = product.product_id ?? product.id ?? null;
+      const productName = product.product_name ?? product.name ?? null;
+      const productPriceRaw = product.product_price ?? product.price ?? 0;
+      const costPriceRaw = product.cost_price ?? product.costPrice ?? 0;
+      const quantityRaw = product.quantity ?? 0;
+
+      const productPrice = Number.isFinite(Number(productPriceRaw)) ? parseFloat(productPriceRaw) : parseFloat(productPriceRaw) || 0;
+      const costPrice = Number.isFinite(Number(costPriceRaw)) ? parseFloat(costPriceRaw) : parseFloat(costPriceRaw) || 0;
+      const qty = Number.isFinite(Number(quantityRaw)) ? parseInt(quantityRaw) : parseInt(quantityRaw) || 0;
+      const totalPrice = product.total_price ?? (productPrice * qty);
+      const totalPriceNum = Number.isFinite(Number(totalPrice)) ? parseFloat(totalPrice) : parseFloat(totalPrice) || 0;
+      const costTotalNum = +(costPrice * qty).toFixed(2);
+
+      computedCostTotal += costTotalNum;
+
+      return {
+        productId,
+        productName,
+        productPrice,
+        costPrice,
+        qty,
+        totalPriceNum,
+        costTotalNum
+      };
+    });
+
+    // Insert offer (including aggregated cost_total)
     const [offerResult] = await connection.query(
-      "INSERT INTO offers (offer_type, description, real_total, offer_total, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
-      [offerType, description || null, parseFloat(realTotal), parseFloat(offerTotal)]
+      "INSERT INTO offers (offer_type, description, real_total, offer_total, cost_total, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+      [offerType, description || null, parseFloat(realTotal), parseFloat(offerTotal), parseFloat(computedCostTotal)]
     );
-    
+
     const offerId = offerResult.insertId;
-    
-    // Insert offer products
-    for (const product of products) {
+
+    // Insert offer products (use normalizedProducts)
+    for (const np of normalizedProducts) {
       await connection.query(
-        "INSERT INTO offer_products (offer_id, product_id, product_name, product_price, quantity, total_price) VALUES (?, ?, ?, ?, ?, ?)",
-        [offerId, product.id, product.name, parseFloat(product.price), parseInt(product.quantity), parseFloat(product.price * product.quantity)]
+        "INSERT INTO offer_products (offer_id, product_id, product_name, product_price, cost_price, quantity, total_price, cost_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [offerId, np.productId, np.productName, np.productPrice, np.costPrice, np.qty, np.totalPriceNum, np.costTotalNum]
       );
     }
     
@@ -1108,10 +1175,39 @@ export const updateOffer = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
     
-    // Update offer
+    // Compute cost_total from incoming products
+    let computedCostTotal = 0;
+    const normalizedProducts = products.map(product => {
+      const productId = product.product_id ?? product.id ?? null;
+      const productName = product.product_name ?? product.name ?? null;
+      const productPriceRaw = product.product_price ?? product.price ?? 0;
+      const costPriceRaw = product.cost_price ?? product.costPrice ?? 0;
+      const quantityRaw = product.quantity ?? 0;
+
+      const productPrice = Number.isFinite(Number(productPriceRaw)) ? parseFloat(productPriceRaw) : parseFloat(productPriceRaw) || 0;
+      const costPrice = Number.isFinite(Number(costPriceRaw)) ? parseFloat(costPriceRaw) : parseFloat(costPriceRaw) || 0;
+      const qty = Number.isFinite(Number(quantityRaw)) ? parseInt(quantityRaw) : parseInt(quantityRaw) || 0;
+      const totalPrice = product.total_price ?? (productPrice * qty);
+      const totalPriceNum = Number.isFinite(Number(totalPrice)) ? parseFloat(totalPrice) : parseFloat(totalPrice) || 0;
+      const costTotalNum = +(costPrice * qty).toFixed(2);
+
+      computedCostTotal += costTotalNum;
+
+      return {
+        productId,
+        productName,
+        productPrice,
+        costPrice,
+        qty,
+        totalPriceNum,
+        costTotalNum
+      };
+    });
+
+    // Update offer (include cost_total)
     const [result] = await connection.query(
-      "UPDATE offers SET offer_type = ?, description = ?, real_total = ?, offer_total = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-      [offerType, description || null, parseFloat(realTotal), parseFloat(offerTotal), parseInt(id)]
+      "UPDATE offers SET offer_type = ?, description = ?, real_total = ?, offer_total = ?, cost_total = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      [offerType, description || null, parseFloat(realTotal), parseFloat(offerTotal), parseFloat(computedCostTotal), parseInt(id)]
     );
     
     if (result.affectedRows === 0) {
@@ -1122,11 +1218,11 @@ export const updateOffer = async (req, res) => {
     // Delete existing offer products
     await connection.query("DELETE FROM offer_products WHERE offer_id = ?", [parseInt(id)]);
     
-    // Insert updated offer products
-    for (const product of products) {
+    // Insert updated offer products (use normalizedProducts)
+    for (const np of normalizedProducts) {
       await connection.query(
-        "INSERT INTO offer_products (offer_id, product_id, product_name, product_price, quantity, total_price) VALUES (?, ?, ?, ?, ?, ?)",
-        [parseInt(id), product.id, product.name, parseFloat(product.price), parseInt(product.quantity), parseFloat(product.price * product.quantity)]
+        "INSERT INTO offer_products (offer_id, product_id, product_name, product_price, cost_price, quantity, total_price, cost_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [parseInt(id), np.productId, np.productName, np.productPrice, np.costPrice, np.qty, np.totalPriceNum, np.costTotalNum]
       );
     }
     

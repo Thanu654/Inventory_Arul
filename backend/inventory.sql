@@ -106,6 +106,7 @@ CREATE TABLE `items` (
   `name` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
   `quantity` int(11) NOT NULL DEFAULT 0,
+  `min_stock` int(11) NOT NULL DEFAULT 0,
   `price` decimal(10,2) NOT NULL,
   `cost_price` decimal(10,2) DEFAULT NULL,
   `category` varchar(100) DEFAULT NULL,
@@ -123,6 +124,7 @@ CREATE TABLE `offers` (
   `description` text DEFAULT NULL,
   `real_total` decimal(10,2) NOT NULL,
   `offer_total` decimal(10,2) NOT NULL,
+  `cost_total` decimal(10,2) DEFAULT 0.00,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -137,8 +139,10 @@ CREATE TABLE `offer_products` (
   `product_id` int(11) NOT NULL,
   `product_name` varchar(255) NOT NULL,
   `product_price` decimal(10,2) NOT NULL,
+  `cost_price` decimal(10,2) DEFAULT NULL,
   `quantity` int(11) NOT NULL,
-  `total_price` decimal(10,2) NOT NULL
+  `total_price` decimal(10,2) NOT NULL,
+  `cost_total` decimal(10,2) DEFAULT 0.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------

@@ -3,9 +3,8 @@ import { toast } from 'react-toastify';
 
 const Notifications = () => {
   const [lowStockItems, setLowStockItems] = useState([]);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [alertQuantity, setAlertQuantity] = useState(10);
-  const [tempAlertQuantity, setTempAlertQuantity] = useState(10);
+  const [subcategories, setSubcategories] = useState([]);
+  // alert-settings removed: use per-item `min_stock` only
   const [isLoading, setIsLoading] = useState(true);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState({ src: '', alt: '' });
@@ -14,34 +13,44 @@ const Notifications = () => {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
-    fetchAlertSettings();
     fetchLowStockItems();
+    fetchSubcategories();
   }, []);
 
-  const fetchAlertSettings = async () => {
+  const fetchSubcategories = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/alert-settings`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.alertQuantity) {
-          setAlertQuantity(data.alertQuantity);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching alert settings:', error);
+      const res = await fetch(`${apiUrl}/api/subcategories`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setSubcategories(data || []);
+    } catch (err) {
+      console.error('Failed to load subcategories', err);
     }
   };
 
+  // alert settings removed; thresholds come from each item's `min_stock` field
+
+  // Fetch all items and compute low-stock using per-item `min_stock` only
   const fetchLowStockItems = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${apiUrl}/api/low-stock-items`);
-      if (response.ok) {
-        const data = await response.json();
-        setLowStockItems(data.items || []);
-      } else {
-        toast.error('Failed to fetch low stock items');
+      const response = await fetch(`${apiUrl}/api/items`);
+      if (!response.ok) {
+        toast.error('Failed to fetch items');
+        setIsLoading(false);
+        return;
       }
+      const items = await response.json();
+
+      // Determine low-stock per item using min_stock when available. Only include items that have min_stock defined.
+      const lowItems = items.filter(item => {
+        if (item.min_stock === undefined || item.min_stock === null) return false;
+        const threshold = parseInt(item.min_stock);
+        const qty = parseInt(item.quantity) || 0;
+        return qty <= threshold;
+      });
+
+      setLowStockItems(lowItems || []);
     } catch (error) {
       console.error('Error fetching low stock items:', error);
       toast.error('Error fetching low stock items');
@@ -50,55 +59,34 @@ const Notifications = () => {
     }
   };
 
-  const openSettingsModal = () => {
-    setTempAlertQuantity(alertQuantity);
-    setIsSettingsModalOpen(true);
+  // alert-settings functions removed; per-item `min_stock` controls behaviour
+
+  // Use per-item threshold (min_stock). If not set, computeThreshold returns null.
+  const computeThreshold = (item) => {
+    return (item.min_stock !== undefined && item.min_stock !== null) ? parseInt(item.min_stock) : null;
   };
 
-  const closeSettingsModal = () => {
-    setTempAlertQuantity(alertQuantity);
-    setIsSettingsModalOpen(false);
-  };
-
-  const handleSaveAlertSettings = async () => {
-    try {
-      const response = await fetch(`${apiUrl}/api/alert-settings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ alertQuantity: tempAlertQuantity }),
-      });
-
-      if (response.ok) {
-        setAlertQuantity(tempAlertQuantity);
-        toast.success('Alert quantity updated successfully!');
-        setIsSettingsModalOpen(false);
-        fetchLowStockItems();
-      } else {
-        toast.error('Failed to update alert settings');
-      }
-    } catch (error) {
-      console.error('Error updating alert settings:', error);
-      toast.error('Error updating alert settings');
-    }
-  };
-
-  const getBadgeColor = (quantity) => {
+  const getBadgeColor = (item) => {
+    const quantity = parseInt(item.quantity) || 0;
+    const threshold = computeThreshold(item);
     if (quantity === 0) return 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-red-200';
-    if (quantity <= alertQuantity / 2) return 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-orange-200';
+    if (threshold !== null && quantity <= Math.floor(threshold / 2)) return 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-orange-200';
     return 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-yellow-200';
   };
 
-  const getStatusText = (quantity) => {
+  const getStatusText = (item) => {
+    const quantity = parseInt(item.quantity) || 0;
+    const threshold = computeThreshold(item);
     if (quantity === 0) return 'Out of Stock';
-    if (quantity <= alertQuantity / 2) return 'Critical';
+    if (threshold !== null && quantity <= Math.floor(threshold / 2)) return 'Critical';
     return 'Low Stock';
   };
 
-  const getPriorityIcon = (quantity) => {
+  const getPriorityIcon = (item) => {
+    const quantity = parseInt(item.quantity) || 0;
+    const threshold = computeThreshold(item);
     if (quantity === 0) return '🔥';
-    if (quantity <= alertQuantity / 2) return '⚠️';
+    if (threshold !== null && quantity <= Math.floor(threshold / 2)) return '⚠️';
     return '📉';
   };
 
@@ -135,19 +123,6 @@ const Notifications = () => {
           
           <div className="flex flex-col sm:flex-row gap-3">
             <button
-              onClick={openSettingsModal}
-              className="group px-6 py-3 bg-white rounded-xl hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-blue-300 flex items-center justify-center gap-3"
-            >
-              <div className="p-2 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 group-hover:from-blue-200 group-hover:to-purple-200 transition-all">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-              </div>
-              <span className="font-medium text-gray-700 group-hover:text-blue-600 transition-colors">Alert Settings</span>
-            </button>
-            
-            <button
               onClick={fetchLowStockItems}
               className="group px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center gap-3"
             >
@@ -163,22 +138,9 @@ const Notifications = () => {
           </div>
         </div>
 
-        {/* Alert Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Alert Summary: showing Low Stock and Out of Stock counts (per-item min_stock) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {[
-            {
-              title: "Alert Threshold",
-              value: alertQuantity,
-              icon: (
-                <div className="p-3 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200">
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  </svg>
-                </div>
-              ),
-              color: "from-blue-500 to-blue-600",
-              unit: "units"
-            },
             {
               title: "Low Stock Items",
               value: lowStockItems.length,
@@ -228,7 +190,7 @@ const Notifications = () => {
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div 
                   className={`h-full bg-gradient-to-r ${stat.color} rounded-full transition-all duration-1000`}
-                  style={{ width: `${Math.min(100, (stat.value / (index === 0 ? 50 : lowStockItems.length + 1)) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (stat.value / (lowStockItems.length + 1)) * 100)}%` }}
                 ></div>
               </div>
             </div>
@@ -241,7 +203,7 @@ const Notifications = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Low Stock Alerts</h2>
-                <p className="text-gray-600 mt-1">Items below the alert threshold of <span className="font-semibold text-blue-600">{alertQuantity}</span> units</p>
+                <p className="text-gray-600 mt-1">Items that have a configured `min_stock` and are at or below that level</p>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -289,7 +251,7 @@ const Notifications = () => {
                     <p className="text-gray-600 max-w-md mx-auto">
                       {showOutOfStockOnly 
                         ? 'Great! You have no items with zero quantity. All products are in stock.'
-                        : `No items are currently below the alert threshold of ${alertQuantity} units. Your inventory is well-managed!`
+                        : `No items are currently at or below their configured min_stock. Your inventory is well-managed!`
                       }
                     </p>
                   </div>
@@ -327,20 +289,25 @@ const Notifications = () => {
                         
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <span className="text-2xl">{getPriorityIcon(item.quantity)}</span>
+                            <span className="text-2xl">{getPriorityIcon(item)}</span>
                             <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{item.name}</h3>
                           </div>
                           <div className="flex flex-wrap gap-4 text-sm">
                             <div className="flex items-center gap-2">
-                              <span className="px-2 py-1 bg-gray-100 rounded-md text-gray-600 font-medium">SKU: {item.sku || 'N/A'}</span>
+                              <span className="text-gray-500">Category:</span>
+                              <span className="font-medium text-gray-700">{item.category || 'Uncategorized'}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-500">Category:</span>
-                              <span className="font-medium text-gray-700">{item.category}</span>
+                              <span className="text-gray-500">Subcategory:</span>
+                              <span className="font-medium text-gray-700">{(subcategories.find(sc => String(sc.id) === String(item.subcategory_id))?.name) || 'None'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500">Min Stock:</span>
+                              <span className="font-bold text-gray-900">{item.min_stock ?? 'N/A'}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-gray-500">Price:</span>
-                              <span className="font-bold text-green-600">${item.price}</span>
+                              <span className="font-bold text-green-600">${parseFloat(item.price).toFixed(2)}</span>
                             </div>
                           </div>
                         </div>
@@ -353,17 +320,19 @@ const Notifications = () => {
                         </div>
                         
                         <div className="flex flex-col items-end gap-2">
-                          <span className={`px-4 py-2 rounded-full text-sm font-bold shadow-sm ${getBadgeColor(item.quantity)}`}>
-                            {getStatusText(item.quantity)}
+                          <span className={`px-4 py-2 rounded-full text-sm font-bold shadow-sm ${getBadgeColor(item)}`}>
+                            {getStatusText(item)}
                           </span>
                           <div className="h-2 w-24 bg-gray-100 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full rounded-full ${item.quantity === 0 ? 'bg-gradient-to-r from-red-500 to-pink-500' : 
-                                item.quantity <= alertQuantity / 2 ? 'bg-gradient-to-r from-orange-500 to-red-500' : 
-                                'bg-gradient-to-r from-yellow-500 to-orange-500'
-                              }`}
-                              style={{ width: `${Math.min(100, (item.quantity / alertQuantity) * 100)}%` }}
-                            ></div>
+                            {(() => {
+                              const threshold = computeThreshold(item) || 1;
+                              const qty = parseInt(item.quantity) || 0;
+                              const percent = threshold === 0 ? 100 : Math.min(100, Math.round((qty / threshold) * 100));
+                              const barClass = qty === 0 ? 'bg-gradient-to-r from-red-500 to-pink-500' : (qty <= Math.floor(threshold / 2) ? 'bg-gradient-to-r from-orange-500 to-red-500' : 'bg-gradient-to-r from-yellow-500 to-orange-500');
+                              return (
+                                <div className={`h-full rounded-full ${barClass}`} style={{ width: `${percent}%` }}></div>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -412,78 +381,7 @@ const Notifications = () => {
           </div>
         )}
 
-        {/* Alert Settings Modal */}
-        {isSettingsModalOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={closeSettingsModal}
-          >
-            <div 
-              className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-slideUp"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-8 border-b border-gray-100">
-                <div className="flex items-center gap-4 mb-2">
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="3" />
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900">Alert Settings</h3>
-                    <p className="text-gray-600 mt-1">Configure low stock notifications</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-8">
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">
-                      Alert Threshold
-                    </label>
-                    <div className="relative group">
-                      <input
-                        type="range"
-                        min="1"
-                        max="100"
-                        value={tempAlertQuantity}
-                        onChange={(e) => setTempAlertQuantity(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-r [&::-webkit-slider-thumb]:from-blue-500 [&::-webkit-slider-thumb]:to-purple-600 [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg"
-                      />
-                      <div className="flex justify-between text-sm text-gray-500 mt-2">
-                        <span>1</span>
-                        <span className="font-medium text-blue-600">Current: {tempAlertQuantity}</span>
-                        <span>100</span>
-                      </div>
-                    </div>
-                    <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                      <p className="text-sm text-gray-700">
-                        Items with quantity <span className="font-bold text-blue-600">below {tempAlertQuantity}</span> will trigger low stock alerts.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-8 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
-                <button
-                  onClick={closeSettingsModal}
-                  className="px-6 py-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-all duration-300 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveAlertSettings}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl font-medium"
-                >
-                  Save Settings
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        
 
         {/* Add custom animations */}
         <style jsx>{`

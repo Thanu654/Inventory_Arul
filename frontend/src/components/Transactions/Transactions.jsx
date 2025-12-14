@@ -798,11 +798,8 @@ const Transactions = () => {
                             if (filterType === 'sale') return (t.source === 'sale');
                             return false;
                           });
-                          const currentTransactions = filtered.slice(
-                            (currentPage - 1) * transactionsPerPage,
-                            currentPage * transactionsPerPage
-                          );
-                          const salesTotal = currentTransactions.reduce((sum, transaction) => {
+                          // Sum over the entire filtered set (ignore pagination)
+                          const salesTotal = filtered.reduce((sum, transaction) => {
                             const subtotal = parseFloat(transaction.total_amount) || 0;
                             const discount = parseFloat(transaction.raw?.offer_amount ?? 0);
                             const total = subtotal - discount;
@@ -833,11 +830,8 @@ const Transactions = () => {
                             if (filterType === 'sale') return false;
                             return false;
                           });
-                          const currentTransactions = filtered.slice(
-                            (currentPage - 1) * transactionsPerPage,
-                            currentPage * transactionsPerPage
-                          );
-                          const supplierTotal = currentTransactions.reduce((sum, transaction) => {
+                          // Sum over the entire filtered set (ignore pagination)
+                          const supplierTotal = filtered.reduce((sum, transaction) => {
                             const subtotal = parseFloat(transaction.total_amount) || 0;
                             const discount = parseFloat(transaction.raw?.offer_amount ?? 0);
                             const total = subtotal - discount;
@@ -868,12 +862,9 @@ const Transactions = () => {
                             if (filterType === 'sale') return (t.source === 'sale');
                             return true;
                           });
-                          const currentTransactions = filtered.slice(
-                            (currentPage - 1) * transactionsPerPage,
-                            currentPage * transactionsPerPage
-                          );
-                          
-                          const salesTotal = currentTransactions
+
+                          // Compute totals from the full filtered results (ignore pagination)
+                          const salesTotal = filtered
                             .filter(t => t.source === 'sale')
                             .reduce((sum, transaction) => {
                               const subtotal = parseFloat(transaction.total_amount) || 0;
@@ -881,8 +872,8 @@ const Transactions = () => {
                               const total = subtotal - discount;
                               return sum + Math.max(total, 0);
                             }, 0);
-                          
-                          const supplierTotal = currentTransactions
+
+                          const supplierTotal = filtered
                             .filter(t => t.source === 'purchase')
                             .reduce((sum, transaction) => {
                               const subtotal = parseFloat(transaction.total_amount) || 0;
@@ -890,7 +881,7 @@ const Transactions = () => {
                               const total = subtotal - discount;
                               return sum + Math.max(total, 0);
                             }, 0);
-                          
+
                           const netTotal = salesTotal - supplierTotal;
                           return netTotal.toFixed(2);
                         })()}
