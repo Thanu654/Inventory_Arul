@@ -254,6 +254,59 @@ const ProfessionalModal = ({
             </div>
           </div>
 
+          {/* Delivery Time & Type */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-3">
+              <span className="flex items-center gap-2">
+                <Truck className="w-4 h-4" />
+                Delivery Options
+              </span>
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">Min Delivery Days</label>
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={form.delivery_min_days}
+                  onChange={(e) => { setForm({ ...form, delivery_min_days: e.target.value }); if (errors.delivery_min_days) setErrors({ ...errors, delivery_min_days: '' }); }}
+                  className={`w-full px-4 py-3.5 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 ${errors.delivery_min_days ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-blue-300'}`}
+                  placeholder="e.g., 1"
+                />
+                {errors.delivery_min_days && <div className="text-xs text-red-600">{errors.delivery_min_days}</div>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">Max Delivery Days</label>
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={form.delivery_max_days}
+                  onChange={(e) => { setForm({ ...form, delivery_max_days: e.target.value }); if (errors.delivery_max_days) setErrors({ ...errors, delivery_max_days: '' }); }}
+                  className={`w-full px-4 py-3.5 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 ${errors.delivery_max_days ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-blue-300'}`}
+                  placeholder="e.g., 3"
+                />
+                {errors.delivery_max_days && <div className="text-xs text-red-600">{errors.delivery_max_days}</div>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-700">Delivery Method & Type</label>
+                <div className="flex gap-2">
+                  <select value={form.delivery_through} onChange={(e) => setForm({ ...form, delivery_through: e.target.value })} className="w-1/2 px-3 py-2 border-2 border-gray-200 rounded-xl">
+                    <option value="ship">Ship</option>
+                    <option value="plan">Plan</option>
+                  </select>
+                  <select value={form.delivery_type} onChange={(e) => setForm({ ...form, delivery_type: e.target.value })} className="w-1/2 px-3 py-2 border-2 border-gray-200 rounded-xl">
+                    <option value="normal">Normal</option>
+                    <option value="fast">Fast</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Image Upload */}
           <div className="space-y-3">
             <label className="block text-sm font-semibold text-gray-900">
@@ -371,7 +424,11 @@ const Delivery = () => {
     min_weight: '',
     max_weight: '',
     normal_price: '',
-    offer_price: ''
+    offer_price: '',
+    delivery_min_days: '',
+    delivery_max_days: '',
+    delivery_through: 'ship',
+    delivery_type: 'normal'
   });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
@@ -431,6 +488,16 @@ const Delivery = () => {
       newErrors.offer_price = 'Offer price must be positive';
     }
 
+    if (form.delivery_min_days && parseInt(form.delivery_min_days) < 0) {
+      newErrors.delivery_min_days = 'Min delivery days must be positive';
+    }
+
+    if (form.delivery_max_days && parseInt(form.delivery_max_days) < 0) {
+      newErrors.delivery_max_days = 'Max delivery days must be positive';
+    } else if (form.delivery_min_days && form.delivery_max_days && parseInt(form.delivery_max_days) < parseInt(form.delivery_min_days)) {
+      newErrors.delivery_max_days = 'Max delivery days must be >= min delivery days';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -442,7 +509,11 @@ const Delivery = () => {
       min_weight: item.min_weight || '',
       max_weight: item.max_weight || '',
       normal_price: item.normal_price || '',
-      offer_price: item.offer_price ?? ''
+      offer_price: item.offer_price ?? '',
+      delivery_min_days: item.delivery_min_days ?? '',
+      delivery_max_days: item.delivery_max_days ?? '',
+      delivery_through: item.delivery_through || 'ship',
+      delivery_type: item.delivery_type || 'normal'
     });
     setImageFile(null);
     setImagePreview(item.image || '');
@@ -488,7 +559,11 @@ const Delivery = () => {
       min_weight: '',
       max_weight: '',
       normal_price: '',
-      offer_price: ''
+      offer_price: '',
+      delivery_min_days: '',
+      delivery_max_days: '',
+      delivery_through: 'ship',
+      delivery_type: 'normal'
     });
     setImageFile(null);
     setImagePreview('');
@@ -525,6 +600,10 @@ const Delivery = () => {
     fd.append('max_weight', form.max_weight);
     fd.append('normal_price', form.normal_price);
     if (form.offer_price !== '') fd.append('offer_price', form.offer_price);
+    if (form.delivery_min_days !== '') fd.append('delivery_min_days', form.delivery_min_days);
+    if (form.delivery_max_days !== '') fd.append('delivery_max_days', form.delivery_max_days);
+    if (form.delivery_through) fd.append('delivery_through', form.delivery_through);
+    if (form.delivery_type) fd.append('delivery_type', form.delivery_type);
     if (imageFile) fd.append('image', imageFile);
     try {
       const url = form.id ? `/api/delivery/${form.id}` : '/api/delivery';
@@ -554,7 +633,11 @@ const Delivery = () => {
       min_weight: '',
       max_weight: '',
       normal_price: '',
-      offer_price: ''
+      offer_price: '',
+      delivery_min_days: '',
+      delivery_max_days: '',
+      delivery_through: 'ship',
+      delivery_type: 'normal'
     });
     setImageFile(null);
     setImagePreview('');
@@ -752,6 +835,18 @@ const Delivery = () => {
                       </div>
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        Delivery (days)
+                      </div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      <div className="flex items-center gap-2">
+                        <Truck className="w-4 h-4" />
+                        Method / Type
+                      </div>
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -800,6 +895,17 @@ const Delivery = () => {
                         ) : (
                           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">No offer</span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-700">
+                          {item.delivery_min_days || '—'} {item.delivery_max_days ? `— ${item.delivery_max_days}d` : ''}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-700 flex items-center gap-2">
+                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-bold bg-gray-100 text-gray-800 rounded-full">{item.delivery_through || '—'}</span>
+                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-bold bg-gray-100 text-gray-800 rounded-full">{item.delivery_type || '—'}</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">

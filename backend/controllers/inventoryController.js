@@ -1058,7 +1058,36 @@ export const getLowStockItems = async (req, res) => {
 export const getOffers = async (req, res) => {
   try {
     const [offers] = await db.query("SELECT * FROM offers ORDER BY created_at DESC");
-    res.json(offers);
+
+    if (offers.length === 0) {
+      return res.json([]);
+    }
+
+    // Fetch all offer_products for the returned offers in one query
+    const offerIds = offers.map(o => o.id);
+    // Join with `items` to include product images and item fields
+    const [productsRows] = await db.query(
+      `SELECT op.*, i.image AS image, i.name AS item_name, i.price AS item_price, i.description AS item_description, i.id AS item_id
+       FROM offer_products op
+       LEFT JOIN items i ON op.product_id = i.id
+       WHERE op.offer_id IN (${offerIds.map(() => '?').join(',')})`,
+      offerIds
+    );
+
+    // Group products by offer_id
+    const productsByOffer = {};
+    for (const p of productsRows) {
+      if (!productsByOffer[p.offer_id]) productsByOffer[p.offer_id] = [];
+      productsByOffer[p.offer_id].push(p);
+    }
+
+    // Attach products array to each offer
+    const offersWithProducts = offers.map(o => ({
+      ...o,
+      products: productsByOffer[o.id] || []
+    }));
+
+    res.json(offersWithProducts);
   } catch (error) {
     console.error("Error fetching offers:", error);
     res.status(500).json({ message: "Database Error", error: error.message });

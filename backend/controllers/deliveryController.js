@@ -25,7 +25,17 @@ export const getDeliveryById = async (req, res) => {
 
 export const createDelivery = async (req, res) => {
   try {
-    const { country_name, min_weight, max_weight, normal_price, offer_price } = req.body;
+    const {
+      country_name,
+      min_weight,
+      max_weight,
+      normal_price,
+      offer_price,
+      delivery_min_days,
+      delivery_max_days,
+      delivery_through,
+      delivery_type
+    } = req.body;
     const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
 
     if (!country_name || min_weight === undefined || max_weight === undefined || normal_price === undefined) {
@@ -33,9 +43,22 @@ export const createDelivery = async (req, res) => {
     }
 
     const [result] = await db.query(
-      `INSERT INTO country_price_conditions (country_name, image, min_weight, max_weight, normal_price, offer_price, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      [country_name, imagePath, parseFloat(min_weight), parseFloat(max_weight), parseFloat(normal_price), offer_price ? parseFloat(offer_price) : null]
+      `INSERT INTO country_price_conditions (
+         country_name, image, min_weight, max_weight, normal_price, offer_price,
+         delivery_min_days, delivery_max_days, delivery_through, delivery_type, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [
+        country_name,
+        imagePath,
+        parseFloat(min_weight),
+        parseFloat(max_weight),
+        parseFloat(normal_price),
+        offer_price ? parseFloat(offer_price) : null,
+        delivery_min_days !== undefined && delivery_min_days !== '' ? parseInt(delivery_min_days) : null,
+        delivery_max_days !== undefined && delivery_max_days !== '' ? parseInt(delivery_max_days) : null,
+        delivery_through || null,
+        delivery_type || null
+      ]
     );
 
     res.status(201).json({ message: "Delivery entry created", id: result.insertId });
@@ -48,7 +71,17 @@ export const createDelivery = async (req, res) => {
 export const updateDelivery = async (req, res) => {
   try {
     const { id } = req.params;
-    const { country_name, min_weight, max_weight, normal_price, offer_price } = req.body;
+    const {
+      country_name,
+      min_weight,
+      max_weight,
+      normal_price,
+      offer_price,
+      delivery_min_days,
+      delivery_max_days,
+      delivery_through,
+      delivery_type
+    } = req.body;
     const newImagePath = req.file ? `/uploads/${req.file.filename}` : null;
 
     // Check exists (fetch full row for fallbacks)
@@ -61,7 +94,9 @@ export const updateDelivery = async (req, res) => {
     }
 
     const updateQuery = `UPDATE country_price_conditions
-                         SET country_name = ?, image = COALESCE(?, image), min_weight = ?, max_weight = ?, normal_price = ?, offer_price = ?, updated_at = CURRENT_TIMESTAMP
+                         SET country_name = ?, image = COALESCE(?, image), min_weight = ?, max_weight = ?, normal_price = ?, offer_price = ?,
+                             delivery_min_days = ?, delivery_max_days = ?, delivery_through = COALESCE(?, delivery_through), delivery_type = COALESCE(?, delivery_type),
+                             updated_at = CURRENT_TIMESTAMP
                          WHERE id = ?`;
 
     const params = [
@@ -71,6 +106,10 @@ export const updateDelivery = async (req, res) => {
       max_weight !== undefined ? parseFloat(max_weight) : existing[0].max_weight,
       normal_price !== undefined ? parseFloat(normal_price) : existing[0].normal_price,
       offer_price !== undefined ? (offer_price !== '' ? parseFloat(offer_price) : null) : existing[0].offer_price,
+      delivery_min_days !== undefined && delivery_min_days !== '' ? parseInt(delivery_min_days) : existing[0].delivery_min_days,
+      delivery_max_days !== undefined && delivery_max_days !== '' ? parseInt(delivery_max_days) : existing[0].delivery_max_days,
+      delivery_through || existing[0].delivery_through,
+      delivery_type || existing[0].delivery_type,
       parseInt(id)
     ];
 

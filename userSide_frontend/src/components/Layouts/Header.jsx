@@ -1,5 +1,7 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import "./Header.css"
+
 const Header = () => {
   return (
     <header className="electro-header">
@@ -8,11 +10,11 @@ const Header = () => {
           <h1>Arul Electronic</h1>
         </div>
         <nav className="electro-nav">
-          <a href="#" className="electro-nav-link">Home</a>
-          <a href="#" className="electro-nav-link">Products</a>
-          <a href="#" className="electro-nav-link">Categories</a>
-          <a href="#" className="electro-nav-link">ParcelService</a>
-          <a href="#" className="electro-nav-link">AboutUS</a>
+          <Link to="/" className="electro-nav-link">Home</Link>
+          <Link to="/products" className="electro-nav-link">Products</Link>
+          <Link to="/categories" className="electro-nav-link">Categories</Link>
+          <Link to="/parcel" className="electro-nav-link">ParcelService</Link>
+          <Link to="/about" className="electro-nav-link">About</Link>
         </nav>
         <div className="electro-nav-icons">
           <button className="electro-icon-btn" title="Search">🔍</button>
