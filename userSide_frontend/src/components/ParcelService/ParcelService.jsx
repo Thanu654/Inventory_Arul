@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Header from '../Layouts/Header';
 import Footer from '../Layouts/Footer';
+import ContactButtons from '../Shared/ContactButtons';
 
 const ParcelService = () => {
   const [rates, setRates] = useState([]);
@@ -639,6 +640,8 @@ const ParcelService = () => {
           </div>
         </div>
       )}
+
+      <ContactButtons />
 
       <Footer />
     </>
