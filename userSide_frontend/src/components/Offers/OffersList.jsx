@@ -804,6 +804,15 @@ const OffersList = () => {
     fetchOffers();
   }, []);
 
+  // Ensure the offers page scrolls to top when opened
+  useEffect(() => {
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+      window.scrollTo(0, 0);
+    }
+  }, []);
+
   // Filter and sort offers
   const filteredOffers = offers.filter(offer => {
     const productCount = (offer.products || offer.items || offer.products_list || []).length;
