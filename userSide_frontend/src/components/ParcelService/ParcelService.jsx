@@ -205,7 +205,7 @@ const ParcelService = () => {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/50">
+      <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/50 ">
         {/* Animated Background Elements */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>

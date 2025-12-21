@@ -215,7 +215,7 @@ const Header = () => {
       </nav>
 
       {/* Add padding to content for mobile bottom nav */}
-      <div className="lg:hidden pb-20"></div>
+      
 
       <style jsx>{`
         @keyframes slideInDown {

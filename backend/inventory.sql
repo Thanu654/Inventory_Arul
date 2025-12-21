@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Dec 10, 2025 at 06:19 AM
+-- Generation Time: Dec 15, 2025 at 04:48 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -34,6 +34,11 @@ CREATE TABLE `alert_settings` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `alert_settings`
+--
+
+
 -- --------------------------------------------------------
 
 --
@@ -46,6 +51,12 @@ CREATE TABLE `categories` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `categories`
+--
+
+
 
 -- --------------------------------------------------------
 
@@ -61,9 +72,18 @@ CREATE TABLE `country_price_conditions` (
   `max_weight` decimal(6,2) NOT NULL,
   `normal_price` decimal(10,2) NOT NULL,
   `offer_price` decimal(10,2) DEFAULT NULL,
+  `delivery_min_days` int(11) DEFAULT NULL,
+  `delivery_max_days` int(11) DEFAULT NULL,
+  `delivery_through` enum('plan','ship') DEFAULT 'ship',
+  `delivery_type` enum('fast','normal') DEFAULT 'normal',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `country_price_conditions`
+--
+
 
 -- --------------------------------------------------------
 
@@ -80,7 +100,17 @@ CREATE TABLE `expenses` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `expenses`
+--
 
+
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `inventory_transactions`
+--
 
 CREATE TABLE `inventory_transactions` (
   `id` int(11) NOT NULL,
@@ -116,7 +146,51 @@ CREATE TABLE `items` (
   `subcategory_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `items`
+--
 
+INSERT INTO `items` (`id`, `name`, `description`, `quantity`, `min_stock`, `price`, `cost_price`, `category`, `image`, `created_at`, `updated_at`, `subcategory_id`) VALUES
+(1, 'LED Bulb 12W', 'Energy saving LED bulb', 120, 10, 650.00, 550.00, 'Lighting', '/uploads/image-1765679838928-284530787.webp', '2025-12-12 01:20:19', '2025-12-14 07:22:25', NULL),
+(2, 'LED Bulb 18W', 'High brightness LED bulb', 90, 100, 850.00, 720.00, 'Lighting', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpqaDgWxyNAI0t2ytSGz0N7GeNxPpJMjALnw&s', '2025-12-12 01:20:19', '2025-12-14 03:11:55', NULL),
+(3, 'Tube Light 4ft', 'White tube light', 68, 0, 1200.00, 980.00, 'Lighting', 'https://images.unsplash.com/photo-1441171205449-f600f908a9f3?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8YnVsYnxlbnwwfHwwfHx8MA%3D%3D', '2025-12-12 01:20:19', '2025-12-14 07:23:04', NULL),
+(4, 'Ceiling Light', 'Round ceiling panel', 60, 0, 1850.00, 1550.00, 'Lighting', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHGWRAO6QebMRwufnclLnq5lDX3pqD_HhuuQ&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(5, 'Emergency Light', 'Rechargeable emergency light', 40, 0, 4200.00, 3800.00, 'Lighting', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpqaDgWxyNAI0t2ytSGz0N7GeNxPpJMjALnw&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(6, 'Street Light 50W', 'Outdoor street light', 30, 0, 12500.00, 11000.00, 'Lighting', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6R9_m2MaZ0aLNst3AmmEP1kM3J0mZj1WjkA&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(7, 'Spot Light', 'Decorative spot light', 45, 0, 2100.00, 1800.00, 'Lighting', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHGWRAO6QebMRwufnclLnq5lDX3pqD_HhuuQ&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(8, 'Night Lamp', 'Small night lamp', 85, 0, 950.00, 750.00, 'Lighting', 'https://www.alarzelectrical.com/wp-content/uploads/2022/01/automatic-circuit-breakers-copper-single-core-cable-accessories-safe-secure-electrical-installation-equipment-protection-152752114.jpg', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(9, 'Flood Light 100W', 'Outdoor flood light', 35, 0, 14500.00, 13200.00, 'Lighting', 'https://images.unsplash.com/photo-1441171205449-f600f908a9f3?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8YnVsYnxlbnwwfHwwfHx8MA%3D%3D', '2025-12-12 01:20:19', '2025-12-13 06:50:51', NULL),
+(10, 'Table Lamp', 'Study table lamp', 55, 0, 3200.00, 2800.00, 'Lighting', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6R9_m2MaZ0aLNst3AmmEP1kM3J0mZj1WjkA&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(11, 'Switch Socket', 'Wall switch socket', 160, 0, 350.00, 280.00, 'Electrical', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTlReqftnEN1qlr_E5JohuVnOjcbbaq_VkoLQ&s', '2025-12-12 01:20:19', '2025-12-13 06:51:51', NULL),
+(12, 'MCB Breaker', 'Mini circuit breaker', 60, 0, 1850.00, 1600.00, 'Electrical', 'https://www.alarzelectrical.com/wp-content/uploads/2022/01/automatic-circuit-breakers-copper-single-core-cable-accessories-safe-secure-electrical-installation-equipment-protection-152752114.jpg', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(13, 'Power Strip', 'Extension power strip', 90, 0, 2200.00, 1950.00, 'Electrical', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpqaDgWxyNAI0t2ytSGz0N7GeNxPpJMjALnw&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(14, 'Plug Top', '3 pin plug top', 200, 0, 120.00, 95.00, 'Electrical', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHGWRAO6QebMRwufnclLnq5lDX3pqD_HhuuQ&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(15, 'Fan Regulator', 'Ceiling fan regulator', 50, 0, 1450.00, 1200.00, 'Electrical', 'https://glocusent.com/cdn/shop/articles/default_name_b7d58ddc-58b2-476d-9942-742567c39ac4.webp?v=1762500645', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(16, 'Electric Wire 1mm', 'Copper wire 1mm', 100, 0, 4500.00, 4100.00, 'Electrical', 'https://www.alarzelectrical.com/wp-content/uploads/2022/01/automatic-circuit-breakers-copper-single-core-cable-accessories-safe-secure-electrical-installation-equipment-protection-152752114.jpg', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(17, 'Electric Wire 2.5mm', 'Copper wire 2.5mm', 80, 0, 7200.00, 6700.00, 'Electrical', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpqaDgWxyNAI0t2ytSGz0N7GeNxPpJMjALnw&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(18, 'Switch Board', '6 switch board', 70, 0, 850.00, 720.00, 'Electrical', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6R9_m2MaZ0aLNst3AmmEP1kM3J0mZj1WjkA&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(19, 'Indicator Light', 'Panel indicator light', 110, 0, 180.00, 130.00, 'Electrical', 'https://thumbs.dreamstime.com/b/light-bulb-brain-inside-hands-businessman-concept-business-idea-light-bulb-brain-inside-hands-106231544.jpg', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(20, 'Adapter Plug', 'Mobile charger adapter', 95, 0, 1700.00, 1500.00, 'Electrical', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHGWRAO6QebMRwufnclLnq5lDX3pqD_HhuuQ&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(21, 'PVC Pipe 1 inch', 'Water pipe', 140, 0, 420.00, 350.00, 'Plumbing', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpqaDgWxyNAI0t2ytSGz0N7GeNxPpJMjALnw&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(22, 'PVC Pipe 2 inch', 'Large water pipe', 90, 0, 820.00, 720.00, 'Plumbing', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6R9_m2MaZ0aLNst3AmmEP1kM3J0mZj1WjkA&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(23, 'Water Tap', 'Metal water tap', 110, 0, 950.00, 800.00, 'Plumbing', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHGWRAO6QebMRwufnclLnq5lDX3pqD_HhuuQ&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(24, 'Shower Head', 'Bathroom shower head', 70, 0, 1850.00, 1600.00, 'Plumbing', 'https://images.unsplash.com/photo-1441171205449-f600f908a9f3?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8YnVsYnxlbnwwfHwwfHx8MA%3D%3D', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(25, 'Ball Valve', 'PVC ball valve', 85, 0, 720.00, 600.00, 'Plumbing', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6R9_m2MaZ0aLNst3AmmEP1kM3J0mZj1WjkA&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(26, 'Flexible Hose', 'Water hose pipe', 120, 0, 550.00, 450.00, 'Plumbing', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpqaDgWxyNAI0t2ytSGz0N7GeNxPpJMjALnw&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(27, 'Sink Pipe', 'Sink drainage pipe', 65, 0, 980.00, 850.00, 'Plumbing', 'https://thumbs.dreamstime.com/b/light-bulb-brain-inside-hands-businessman-concept-business-idea-light-bulb-brain-inside-hands-106231544.jpg', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(28, 'Water Filter', 'Home water filter', 40, 0, 8200.00, 7500.00, 'Plumbing', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHGWRAO6QebMRwufnclLnq5lDX3pqD_HhuuQ&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(29, 'Flush Tank', 'Toilet flush tank', 30, 0, 16500.00, 15000.00, 'Plumbing', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6R9_m2MaZ0aLNst3AmmEP1kM3J0mZj1WjkA&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(30, 'Pipe Elbow', 'PVC elbow joint', 200, 0, 120.00, 90.00, 'Plumbing', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpqaDgWxyNAI0t2ytSGz0N7GeNxPpJMjALnw&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(31, 'Flush Tank', 'Toilet flush tank', 30, 0, 16500.00, 15000.00, 'TOOL', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6R9_m2MaZ0aLNst3AmmEP1kM3J0mZj1WjkA&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+(32, 'Pipe Elbow', 'PVC elbow joint', 200, 120, 1200.00, 95.00, 'TOOL', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpqaDgWxyNAI0t2ytSGz0N7GeNxPpJMjALnw&s', '2025-12-12 01:20:19', '2025-12-14 02:52:09', NULL),
+(33, 'Indicator Light', 'Panel indicator light', 120, 118, 1000.00, 140.00, 'Hardware', 'https://thumbs.dreamstime.com/b/light-bulb-brain-inside-hands-businessman-concept-business-idea-light-bulb-brain-inside-hands-106231544.jpg', '2025-12-12 01:20:19', '2025-12-14 02:52:29', NULL),
+(34, 'Adapter Plug', 'Mobile charger adapter', 95, 0, 1700.00, 1600.00, 'Hardware', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHGWRAO6QebMRwufnclLnq5lDX3pqD_HhuuQ&s', '2025-12-12 01:20:19', '2025-12-12 01:20:19', NULL),
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `offers`
+--
 
 CREATE TABLE `offers` (
   `id` int(11) NOT NULL,
@@ -129,9 +203,20 @@ CREATE TABLE `offers` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `offers`
+--
+
+INSERT INTO `offers` (`id`, `offer_type`, `description`, `real_total`, `offer_total`, `cost_total`, `created_at`, `updated_at`) VALUES
+(16, 'percentage', NULL, 1200.00, 1080.36, 980.00, '2025-12-14 05:37:22', '2025-12-14 05:37:43'),
+(17, 'percentage', NULL, 4550.00, 3640.00, 3800.00, '2025-12-14 05:54:49', '2025-12-14 05:54:49'),
+(18, 'percentage', 'NEW ONE ', 1500.00, 1200.00, 1270.00, '2025-12-14 12:40:27', '2025-12-14 12:40:27');
+
 -- --------------------------------------------------------
 
-
+--
+-- Table structure for table `offer_products`
+--
 
 CREATE TABLE `offer_products` (
   `id` int(11) NOT NULL,
@@ -144,6 +229,19 @@ CREATE TABLE `offer_products` (
   `total_price` decimal(10,2) NOT NULL,
   `cost_total` decimal(10,2) DEFAULT 0.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `offer_products`
+--
+
+INSERT INTO `offer_products` (`id`, `offer_id`, `product_id`, `product_name`, `product_price`, `cost_price`, `quantity`, `total_price`, `cost_total`) VALUES
+(19, 16, 3, 'Tube Light 4ft', 1200.00, 980.00, 1, 1200.00, 980.00),
+(20, 17, 2, 'LED Bulb 18W', 850.00, 720.00, 1, 850.00, 720.00),
+(21, 17, 3, 'Tube Light 4ft', 1200.00, 980.00, 1, 1200.00, 980.00),
+(22, 17, 4, 'Ceiling Light', 1850.00, 1550.00, 1, 1850.00, 1550.00),
+(23, 17, 1, 'LED Bulb 12W', 650.00, 550.00, 1, 650.00, 550.00),
+(24, 18, 2, 'LED Bulb 18W', 850.00, 720.00, 1, 850.00, 720.00),
+(25, 18, 1, 'LED Bulb 12W', 650.00, 550.00, 1, 650.00, 550.00);
 
 -- --------------------------------------------------------
 
@@ -162,7 +260,13 @@ CREATE TABLE `payments` (
   `paid_by_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `payments`
+--
 
+
+
+-- --------------------------------------------------------
 
 --
 -- Table structure for table `permissions`
@@ -175,7 +279,17 @@ CREATE TABLE `permissions` (
   `can_access` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `permissions`
+--
 
+
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `purchases`
+--
 
 CREATE TABLE `purchases` (
   `id` int(11) NOT NULL,
@@ -196,9 +310,12 @@ CREATE TABLE `purchases` (
   `offer_amount` decimal(10,2) DEFAULT 0.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `purchases`
+--
 
 
-
+-- --------------------------------------------------------
 
 --
 -- Table structure for table `purchase_items`
@@ -214,8 +331,13 @@ CREATE TABLE `purchase_items` (
   `total_price` decimal(10,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `purchase_items`
+--
 
 
+
+-- --------------------------------------------------------
 
 --
 -- Table structure for table `sales`
@@ -236,6 +358,12 @@ CREATE TABLE `sales` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `sales`
+--
+
+
+-- --------------------------------------------------------
 
 --
 -- Table structure for table `sale_items`
@@ -252,7 +380,15 @@ CREATE TABLE `sale_items` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
+-- Dumping data for table `sale_items`
+--
 
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `subcategories`
+--
 
 CREATE TABLE `subcategories` (
   `id` int(11) NOT NULL,
@@ -261,6 +397,11 @@ CREATE TABLE `subcategories` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `subcategories`
+--
+
 
 -- --------------------------------------------------------
 
@@ -280,7 +421,10 @@ CREATE TABLE `suppliers` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- --------------------------------------------------------
+--
+-- Dumping data for table `suppliers`
+--
+
 
 --
 -- Table structure for table `users`
@@ -301,7 +445,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `name`, `email`, `password`, `role`, `status`, `created_at`) VALUES
-(1, 'Admin User', 'admin@gmail.com', '$2b$10$fv9FTGKevaCoSM.Sd1v2zuHRGyKVewZuOlnF.nio9qOBohc5v45Va', 'admin', 'active', '2025-12-09 13:39:28');
+(1, 'Admin User', 'admin@gmail.com', '$2b$10$fv9FTGKevaCoSM.Sd1v2zuHRGyKVewZuOlnF.nio9qOBohc5v45Va', 'admin', 'active', '2025-12-09 13:39:28'),
 
 --
 -- Indexes for dumped tables
@@ -439,19 +583,19 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `alert_settings`
 --
 ALTER TABLE `alert_settings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `categories`
 --
 ALTER TABLE `categories`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `country_price_conditions`
 --
 ALTER TABLE `country_price_conditions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `expenses`
@@ -469,73 +613,73 @@ ALTER TABLE `inventory_transactions`
 -- AUTO_INCREMENT for table `items`
 --
 ALTER TABLE `items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT for table `offers`
 --
 ALTER TABLE `offers`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `offer_products`
 --
 ALTER TABLE `offer_products`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT for table `payments`
 --
 ALTER TABLE `payments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `permissions`
 --
 ALTER TABLE `permissions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `purchases`
 --
 ALTER TABLE `purchases`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `purchase_items`
 --
 ALTER TABLE `purchase_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `sales`
 --
 ALTER TABLE `sales`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `sale_items`
 --
 ALTER TABLE `sale_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `subcategories`
 --
 ALTER TABLE `subcategories`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `suppliers`
 --
 ALTER TABLE `suppliers`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Constraints for dumped tables
